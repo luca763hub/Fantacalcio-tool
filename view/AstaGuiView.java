@@ -1,0 +1,918 @@
+package view;
+
+import control.AstaController;
+import model.FantaSquadra;
+import model.Giocatore;
+
+import javax.imageio.ImageIO;
+import javax.swing.*;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.geom.Ellipse2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class AstaGuiView extends JFrame {
+    private AstaController controller;
+
+    private JTextField txtRicerca;
+    private JTable tabellaGiocatori;
+    private DefaultTableModel tableModel;
+    
+    private JTabbedPane tabbedPane;
+    private JTable tabellaTabellone;
+    private DefaultTableModel tableModelTabellone;
+    private JComboBox<FantaSquadra> comboVisualizzaRosa;
+
+    private JTable tabellaRosaDettaglio;
+    private DefaultTableModel tableModelRosaDettaglio;
+    private JLabel lblInfoRosa;
+    private JLabel lblFotoProfilo;
+    private JLabel lblTitoloRosa;
+
+    // Palette Dark High Contrast
+    private final Color COLOR_BG_DARK = new Color(14, 14, 22);
+    private final Color COLOR_CARD_DARK = new Color(24, 24, 36);
+    private final Color COLOR_HEADER_DARK = new Color(36, 38, 58);
+    private final Color COLOR_BORDER = new Color(60, 63, 95);
+    private final Color COLOR_TEXT_WHITE = new Color(240, 243, 246);
+    private final Color COLOR_TEXT_MUTED = new Color(158, 166, 188);
+
+    private final Color COLOR_ACCENT = new Color(137, 180, 250);
+    private final Color COLOR_SUCCESS = new Color(166, 227, 161);
+    private final Color COLOR_DANGER = new Color(243, 139, 168);
+
+    // Colori Ruoli
+    private final Color COLOR_P = new Color(130, 226, 128);
+    private final Color COLOR_D = new Color(130, 200, 255);
+    private final Color COLOR_C = new Color(255, 215, 110);
+    private final Color COLOR_A = new Color(255, 120, 140);
+
+    // Tipografia ingrandita
+    private final Font FONT_HEADER_TITLE = new Font("SansSerif", Font.BOLD, 26);
+    private final Font FONT_TABLE = new Font("SansSerif", Font.BOLD, 16);
+    private final Font FONT_TABLE_HEADER = new Font("SansSerif", Font.BOLD, 14);
+    private final Font FONT_BUTTON = new Font("SansSerif", Font.BOLD, 15);
+    private final Font FONT_COMBO = new Font("SansSerif", Font.BOLD, 16);
+    private final Font FONT_INFO = new Font("SansSerif", Font.BOLD, 16);
+
+    // Dimensioni foto
+    private static final int AVATAR_TABELLONE_SIZE = 125; 
+    private static final int AVATAR_PROFILO_SIZE = 240;
+
+    public AstaGuiView(AstaController controller) {
+        // Uso del LookAndFeel di sistema/cross-platform standard per evitare bug grafici su Linux
+        try {
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+        } catch (Exception e) {
+            // Fallback silenzioso
+        }
+
+        this.controller = controller;
+        controller.caricaListoneCSV("data/giocatori.csv");
+
+        setTitle("⚡ COMPAGNI DI MERENDE - ASTA FANTACALCIO");
+        setSize(1550, 950);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        getContentPane().setBackground(COLOR_BG_DARK);
+
+        configuraPartecipantiPredefiniti();
+        inizializzaComponenti();
+        aggiornaVista();
+    }
+
+    private void configuraPartecipantiPredefiniti() {
+        if (controller.esisteSalvataggio()) {
+            int risposta = JOptionPane.showConfirmDialog(
+                    this,
+                    "Trovata un'asta salvata precedente. Vuoi riprenderla?",
+                    "Ripristino Asta",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+            );
+
+            if (risposta == JOptionPane.YES_OPTION && controller.caricaStatoSalvato()) {
+                JOptionPane.showMessageDialog(this, "Asta ripristinata con successo!");
+                return;
+            }
+        }
+
+        final int BUDGET_FISSO = 500;
+        String[] nomiPartecipanti = {
+            "Luca", "Luigi", "Manolo", "Zampa",
+            "Leonardo", "Simone G", "Simone M", "Mattia"
+        };
+
+        for (String nome : nomiPartecipanti) {
+            controller.aggiungiPartecipante(nome, BUDGET_FISSO);
+        }
+    }
+
+    private void inizializzaComponenti() {
+        setLayout(new BorderLayout(16, 16));
+        ((JPanel) getContentPane()).setBorder(new EmptyBorder(14, 14, 14, 14));
+
+        // --- HEADER SUPERIORE ---
+        JPanel panelHeader = new JPanel(new GridBagLayout());
+        panelHeader.setBackground(COLOR_CARD_DARK);
+        panelHeader.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1), new EmptyBorder(14, 18, 14, 18)));
+
+        JLabel lblTitle = new JLabel("COMPAGNI DI MERENDE");
+        lblTitle.setFont(FONT_HEADER_TITLE);
+        lblTitle.setForeground(COLOR_ACCENT);
+
+        panelHeader.add(lblTitle);
+        add(panelHeader, BorderLayout.NORTH);
+
+        // --- PANNELLO SINISTRO: LISTONE MINIMIZZATO ---
+        JPanel panelSinistra = new JPanel(new BorderLayout(12, 12));
+        panelSinistra.setBackground(COLOR_CARD_DARK);
+        panelSinistra.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1), new EmptyBorder(12, 12, 12, 12)));
+
+        txtRicerca = new JTextField();
+        txtRicerca.setFont(FONT_TABLE);
+        txtRicerca.setBackground(COLOR_HEADER_DARK);
+        txtRicerca.setForeground(COLOR_TEXT_WHITE);
+        txtRicerca.setCaretColor(COLOR_TEXT_WHITE);
+        txtRicerca.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1), new EmptyBorder(8, 10, 8, 10)));
+
+        JButton btnCerca = creaBottone("🔍 Cerca", COLOR_ACCENT, Color.BLACK);
+
+        JPanel panelRicerca = new JPanel(new BorderLayout(10, 10));
+        panelRicerca.setOpaque(false);
+        panelRicerca.add(txtRicerca, BorderLayout.CENTER);
+        panelRicerca.add(btnCerca, BorderLayout.EAST);
+
+        String[] colonne = {"Nome", "Ruolo"};
+        tableModel = new DefaultTableModel(colonne, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+
+        tabellaGiocatori = new JTable(tableModel);
+        tabellaGiocatori.setFont(FONT_TABLE);
+        tabellaGiocatori.setRowHeight(38);
+        tabellaGiocatori.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tabellaGiocatori.setBackground(COLOR_CARD_DARK);
+        tabellaGiocatori.setForeground(COLOR_TEXT_WHITE);
+        tabellaGiocatori.setShowGrid(false);
+        tabellaGiocatori.getTableHeader().setBackground(COLOR_HEADER_DARK);
+        tabellaGiocatori.getTableHeader().setForeground(COLOR_ACCENT);
+        tabellaGiocatori.getTableHeader().setFont(FONT_TABLE_HEADER);
+        tabellaGiocatori.getTableHeader().setPreferredSize(new Dimension(0, 38));
+        
+        tabellaGiocatori.getColumnModel().getColumn(0).setPreferredWidth(260); 
+        tabellaGiocatori.getColumnModel().getColumn(1).setPreferredWidth(60);  
+
+        tabellaGiocatori.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                String ruolo = String.valueOf(table.getValueAt(row, 1));
+                setBorder(new EmptyBorder(0, 10, 0, 10));
+
+                if (!isSelected) {
+                    c.setBackground(row % 2 == 0 ? COLOR_CARD_DARK : COLOR_HEADER_DARK.darker());
+                    if (column == 1) { 
+                        switch (ruolo) {
+                            case "P": c.setForeground(COLOR_P); break;
+                            case "D": c.setForeground(COLOR_D); break;
+                            case "C": c.setForeground(COLOR_C); break;
+                            case "A": c.setForeground(COLOR_A); break;
+                            default: c.setForeground(COLOR_TEXT_WHITE); break;
+                        }
+                    } else {
+                        c.setForeground(COLOR_TEXT_WHITE);
+                    }
+                } else {
+                    c.setBackground(COLOR_ACCENT);
+                    c.setForeground(Color.BLACK);
+                }
+                return c;
+            }
+        });
+
+        JScrollPane scrollTable = new JScrollPane(tabellaGiocatori);
+        scrollTable.setBorder(BorderFactory.createEmptyBorder());
+        scrollTable.getViewport().setBackground(COLOR_CARD_DARK);
+        panelSinistra.add(panelRicerca, BorderLayout.NORTH);
+        panelSinistra.add(scrollTable, BorderLayout.CENTER);
+
+        // --- PANNELLO DESTRO: TABELLONE & DETTAGLIO ROSE ---
+        tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(FONT_TABLE_HEADER);
+        tabbedPane.setBackground(COLOR_CARD_DARK);
+        tabbedPane.setForeground(COLOR_TEXT_WHITE);
+        tabbedPane.setBorder(BorderFactory.createEmptyBorder());
+
+        // 1. Tabellone Generale
+        String[] colTabellone = {"Foto", "Squadra", "Crediti", "P", "D", "C", "A", "Tot"};
+        tableModelTabellone = new DefaultTableModel(colTabellone, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 0) return ImageIcon.class;
+                return Object.class;
+            }
+        };
+
+        tabellaTabellone = new JTable(tableModelTabellone);
+        tabellaTabellone.setFont(FONT_TABLE);
+        tabellaTabellone.setRowHeight(150); 
+        tabellaTabellone.setBackground(COLOR_CARD_DARK);
+        tabellaTabellone.setForeground(COLOR_TEXT_WHITE);
+        tabellaTabellone.setShowGrid(false);
+        tabellaTabellone.getTableHeader().setBackground(COLOR_HEADER_DARK);
+        tabellaTabellone.getTableHeader().setForeground(COLOR_ACCENT);
+        tabellaTabellone.getTableHeader().setFont(FONT_TABLE_HEADER);
+        tabellaTabellone.getTableHeader().setPreferredSize(new Dimension(0, 42));
+        
+        tabellaTabellone.getColumnModel().getColumn(0).setPreferredWidth(AVATAR_TABELLONE_SIZE + 45);
+
+        DefaultTableCellRenderer renderTestoTabellone = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setBorder(new EmptyBorder(0, 15, 0, 15));
+                c.setFont(FONT_TABLE);
+                if (!isSelected) {
+                    c.setBackground(row % 2 == 0 ? COLOR_CARD_DARK : COLOR_HEADER_DARK.darker());
+                    c.setForeground(COLOR_TEXT_WHITE);
+                } else {
+                    c.setBackground(COLOR_ACCENT);
+                    c.setForeground(Color.BLACK);
+                }
+                return c;
+            }
+        };
+
+        DefaultTableCellRenderer renderFotoTabellone = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                lbl.setText("");
+                if (value instanceof ImageIcon) {
+                    lbl.setIcon((ImageIcon) value);
+                } else {
+                    lbl.setIcon(null);
+                }
+                lbl.setHorizontalAlignment(SwingConstants.CENTER);
+                
+                if (!isSelected) {
+                    lbl.setBackground(row % 2 == 0 ? COLOR_CARD_DARK : COLOR_HEADER_DARK.darker());
+                } else {
+                    lbl.setBackground(COLOR_ACCENT);
+                }
+                return lbl;
+            }
+        };
+
+        tabellaTabellone.getColumnModel().getColumn(0).setCellRenderer(renderFotoTabellone);
+        for(int i = 1; i < tabellaTabellone.getColumnCount(); i++) {
+            tabellaTabellone.getColumnModel().getColumn(i).setCellRenderer(renderTestoTabellone);
+        }
+
+        JScrollPane scrollTabellone = new JScrollPane(tabellaTabellone);
+        scrollTabellone.setBorder(BorderFactory.createEmptyBorder());
+        scrollTabellone.getViewport().setBackground(COLOR_CARD_DARK);
+        tabbedPane.addTab("📊 Tabellone Generale", scrollTabellone);
+
+        // 2. Dettaglio Rosa Ottimizzato
+        JPanel panelDettaglioRosa = new JPanel(new BorderLayout(14, 14));
+        panelDettaglioRosa.setBackground(COLOR_CARD_DARK);
+        panelDettaglioRosa.setBorder(new EmptyBorder(16, 16, 16, 16));
+
+        comboVisualizzaRosa = new JComboBox<>();
+        comboVisualizzaRosa.setFont(FONT_COMBO);
+        comboVisualizzaRosa.setBackground(COLOR_HEADER_DARK);
+        comboVisualizzaRosa.setForeground(COLOR_ACCENT);
+        comboVisualizzaRosa.setPreferredSize(new Dimension(300, 42));
+        comboVisualizzaRosa.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1), new EmptyBorder(4, 8, 4, 8)));
+        
+        comboVisualizzaRosa.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                setFont(FONT_COMBO);
+                setBorder(new EmptyBorder(8, 12, 8, 12));
+                if (isSelected) {
+                    setBackground(COLOR_ACCENT);
+                    setForeground(Color.BLACK);
+                } else {
+                    setBackground(COLOR_HEADER_DARK);
+                    setForeground(COLOR_TEXT_WHITE);
+                }
+                return c;
+            }
+        });
+
+        JPanel panelTopRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        panelTopRight.setOpaque(false);
+        panelTopRight.add(comboVisualizzaRosa);
+
+        lblFotoProfilo = new JLabel();
+        lblFotoProfilo.setPreferredSize(new Dimension(AVATAR_PROFILO_SIZE, AVATAR_PROFILO_SIZE));
+        lblFotoProfilo.setHorizontalAlignment(JLabel.CENTER);
+        lblFotoProfilo.setVerticalAlignment(JLabel.CENTER);
+
+        JPanel panelInfoDestra = new JPanel();
+        panelInfoDestra.setLayout(new BoxLayout(panelInfoDestra, BoxLayout.Y_AXIS));
+        panelInfoDestra.setOpaque(false);
+        panelInfoDestra.setBorder(new EmptyBorder(10, 24, 10, 10));
+
+        lblTitoloRosa = new JLabel("NOME SQUADRA");
+        lblTitoloRosa.setFont(new Font("SansSerif", Font.BOLD, 32));
+        lblTitoloRosa.setForeground(COLOR_ACCENT);
+
+        lblInfoRosa = new JLabel("Resoconto ruoli e crediti...");
+        lblInfoRosa.setFont(FONT_INFO);
+        lblInfoRosa.setForeground(COLOR_TEXT_WHITE);
+        lblInfoRosa.setBorder(new EmptyBorder(18, 0, 0, 0));
+
+        panelInfoDestra.add(lblTitoloRosa);
+        panelInfoDestra.add(lblInfoRosa);
+
+        JPanel panelHeaderCentro = new JPanel(new BorderLayout(20, 0));
+        panelHeaderCentro.setOpaque(false);
+        panelHeaderCentro.add(lblFotoProfilo, BorderLayout.WEST);
+        panelHeaderCentro.add(panelInfoDestra, BorderLayout.CENTER);
+
+        JPanel panelTopRosa = new JPanel(new BorderLayout(0, 12));
+        panelTopRosa.setOpaque(false);
+        panelTopRosa.setBorder(new EmptyBorder(0, 0, 16, 0));
+        panelTopRosa.add(panelTopRight, BorderLayout.NORTH);
+        panelTopRosa.add(panelHeaderCentro, BorderLayout.CENTER);
+
+        String[] colRosa = {"Nome", "R", "Squadra", "Prezzo"};
+        tableModelRosaDettaglio = new DefaultTableModel(colRosa, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tabellaRosaDettaglio = new JTable(tableModelRosaDettaglio);
+        tabellaRosaDettaglio.setFont(FONT_TABLE);
+        tabellaRosaDettaglio.setRowHeight(38);
+        tabellaRosaDettaglio.setBackground(COLOR_CARD_DARK);
+        tabellaRosaDettaglio.setForeground(COLOR_TEXT_WHITE);
+        tabellaRosaDettaglio.setShowGrid(false);
+        tabellaRosaDettaglio.getTableHeader().setBackground(COLOR_HEADER_DARK);
+        tabellaRosaDettaglio.getTableHeader().setForeground(COLOR_ACCENT);
+        tabellaRosaDettaglio.getTableHeader().setFont(FONT_TABLE_HEADER);
+        tabellaRosaDettaglio.getTableHeader().setPreferredSize(new Dimension(0, 38));
+
+        tabellaRosaDettaglio.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                String ruolo = String.valueOf(table.getValueAt(row, 1));
+                setBorder(new EmptyBorder(0, 15, 0, 15));
+                c.setFont(FONT_TABLE);
+
+                if (!isSelected) {
+                    c.setBackground(row % 2 == 0 ? COLOR_CARD_DARK : COLOR_HEADER_DARK.darker());
+                    if (column == 1) {
+                        switch (ruolo) {
+                            case "P": c.setForeground(COLOR_P); break;
+                            case "D": c.setForeground(COLOR_D); break;
+                            case "C": c.setForeground(COLOR_C); break;
+                            case "A": c.setForeground(COLOR_A); break;
+                        }
+                    } else if (column == 3) {
+                        c.setForeground(COLOR_SUCCESS);
+                    } else {
+                        c.setForeground(COLOR_TEXT_WHITE);
+                    }
+                } else {
+                    c.setBackground(COLOR_ACCENT);
+                    c.setForeground(Color.BLACK);
+                }
+                return c;
+            }
+        });
+
+        JScrollPane scrollRosa = new JScrollPane(tabellaRosaDettaglio);
+        scrollRosa.setBorder(BorderFactory.createEmptyBorder());
+        scrollRosa.getViewport().setBackground(COLOR_CARD_DARK);
+
+        panelDettaglioRosa.add(panelTopRosa, BorderLayout.NORTH);
+        panelDettaglioRosa.add(scrollRosa, BorderLayout.CENTER);
+
+        tabbedPane.addTab("📋 Dettaglio Rose", panelDettaglioRosa);
+
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, panelSinistra, tabbedPane);
+        mainSplit.setDividerLocation(400); 
+        mainSplit.setBorder(null);
+        mainSplit.setBackground(COLOR_BG_DARK);
+        mainSplit.setDividerSize(16);
+
+        add(mainSplit, BorderLayout.CENTER);
+
+        // LISTENERS ED EVENTI
+        btnCerca.addActionListener(e -> cercaGiocatori());
+        txtRicerca.addActionListener(e -> cercaGiocatori());
+        comboVisualizzaRosa.addActionListener(e -> mostraRosaDettagliata());
+
+        tabellaTabellone.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && tabellaTabellone.getSelectedRow() != -1) {
+                    String nomeAllen = (String) tableModelTabellone.getValueAt(tabellaTabellone.getSelectedRow(), 1);
+                    for (int i = 0; i < comboVisualizzaRosa.getItemCount(); i++) {
+                        FantaSquadra sq = comboVisualizzaRosa.getItemAt(i);
+                        if (sq.getNomeAllenatore().equals(nomeAllen)) {
+                            comboVisualizzaRosa.setSelectedItem(sq);
+                            tabbedPane.setSelectedIndex(1);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        tabellaGiocatori.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    e.consume();
+                    apriDialogAssegnazione();
+                }
+            }
+        });
+
+        tabellaGiocatori.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && tabellaGiocatori.getSelectedRow() != -1) {
+                    apriDialogAssegnazione();
+                }
+            }
+        });
+
+        tabellaRosaDettaglio.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    e.consume();
+                    apriDialogGestioneRosa();
+                }
+            }
+        });
+
+        tabellaRosaDettaglio.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && tabellaRosaDettaglio.getSelectedRow() != -1) {
+                    apriDialogGestioneRosa();
+                }
+            }
+        });
+    }
+
+    private ImageIcon caricaFotoRidimensionata(String nomeAllenatore, int larghezza, int altezza) {
+        String baseDir = "data/foto/";
+        File dir = new File(baseDir);
+        
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null;
+        }
+
+        File f = null;
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                String nomeFile = file.getName();
+                int punto = nomeFile.lastIndexOf('.');
+                if (punto > 0) {
+                    String nomeSenzaExt = nomeFile.substring(0, punto);
+                    if (nomeSenzaExt.equalsIgnoreCase(nomeAllenatore.trim())) {
+                        f = file;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (f == null || !f.exists()) {
+            return null;
+        }
+
+        try {
+            BufferedImage originale = ImageIO.read(f);
+            if (originale == null) return null;
+
+            int dim = Math.min(larghezza, altezza);
+            BufferedImage circolare = creaAvatarCircolare(originale, dim, nomeAllenatore);
+            return new ImageIcon(circolare);
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+private BufferedImage creaAvatarCircolare(
+        BufferedImage sorgente,
+        int dimensione,
+        String nomeAllenatore) {
+
+    int w = sorgente.getWidth();
+    int h = sorgente.getHeight();
+
+    int lato = Math.min(w, h);
+
+    // Crop personalizzato
+    int cropX = (w - lato) / 2;
+    int cropY = (h - lato) / 2;
+
+    if (nomeAllenatore.equalsIgnoreCase("Luigi")) {
+        // Luigi: sposta l'inquadratura leggermente verso l'alto
+        cropY = 80;
+    }
+    else if (nomeAllenatore.equalsIgnoreCase("Simone G")) {
+        // Simone G: sposta l'inquadratura verso l'alto
+        cropY = 60;
+    }
+    else if (nomeAllenatore.equalsIgnoreCase("luca")) {
+        // Luca: inquadratura personalizzata
+        cropY = 250;
+    }
+
+    // Sicurezza
+    cropY = Math.max(0, Math.min(cropY, h - lato));
+
+    BufferedImage quadrata =
+            sorgente.getSubimage(cropX, cropY, lato, lato);
+
+    BufferedImage risultato = new BufferedImage(
+            dimensione,
+            dimensione,
+            BufferedImage.TYPE_INT_ARGB
+    );
+
+    Graphics2D g2 = risultato.createGraphics();
+
+    g2.setRenderingHint(
+            RenderingHints.KEY_ANTIALIASING,
+            RenderingHints.VALUE_ANTIALIAS_ON
+    );
+
+    g2.setRenderingHint(
+            RenderingHints.KEY_INTERPOLATION,
+            RenderingHints.VALUE_INTERPOLATION_BILINEAR
+    );
+
+    g2.setRenderingHint(
+            RenderingHints.KEY_RENDERING,
+            RenderingHints.VALUE_RENDER_QUALITY
+    );
+
+    int anello = Math.max(3, dimensione / 30);
+
+    Ellipse2D clip = new Ellipse2D.Float(
+            anello,
+            anello,
+            dimensione - anello * 2f,
+            dimensione - anello * 2f
+    );
+
+    // Mantiene il ritratto circolare
+    g2.setClip(clip);
+
+    g2.drawImage(
+            quadrata,
+            anello,
+            anello,
+            dimensione - anello,
+            dimensione - anello,
+            null
+    );
+
+    g2.setClip(null);
+
+    // Bordo circolare
+    g2.setStroke(new BasicStroke(anello));
+    g2.setColor(COLOR_ACCENT);
+
+    g2.draw(new Ellipse2D.Float(
+            anello / 2f,
+            anello / 2f,
+            dimensione - anello,
+            dimensione - anello
+    ));
+
+    g2.dispose();
+
+    return risultato;
+}
+
+    private JButton creaBottone(String testo, Color colBg, Color colFg) {
+        JButton b = new JButton(testo);
+        b.setFont(FONT_BUTTON);
+        b.setBackground(colBg);
+        b.setForeground(colFg);
+        b.setFocusPainted(false);
+        b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        b.setBorder(new EmptyBorder(8, 16, 8, 16));
+        return b;
+    }
+
+    private void cercaGiocatori() {
+        tableModel.setRowCount(0);
+        String query = txtRicerca.getText().trim();
+        List<Giocatore> trovati = controller.cercaGiocatori(query);
+        for (Giocatore g : trovati) {
+            tableModel.addRow(new Object[]{g.getNome(), g.getRuolo()});
+        }
+        if (tabellaGiocatori.getRowCount() > 0) {
+            tabellaGiocatori.setRowSelectionInterval(0, 0);
+        }
+    }
+
+    private void apriDialogAssegnazione() {
+        int row = tabellaGiocatori.getSelectedRow();
+        if (row == -1) return;
+
+        String nomeGiocatore = (String) tableModel.getValueAt(row, 0);
+        Giocatore gSel = controller.getListone().stream()
+                .filter(g -> g.getNome().equalsIgnoreCase(nomeGiocatore))
+                .findFirst()
+                .orElse(null);
+
+        if (gSel == null) return;
+
+        JDialog dialog = new JDialog(this, "Assegna " + gSel.getNome() + " (" + gSel.getRuolo() + ")", true);
+        dialog.setSize(420, 260);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new GridLayout(5, 1, 10, 10));
+        dialog.getContentPane().setBackground(COLOR_CARD_DARK);
+        ((JPanel) dialog.getContentPane()).setBorder(new EmptyBorder(18, 18, 18, 18));
+
+        JComboBox<FantaSquadra> comboDialog = new JComboBox<>();
+        comboDialog.setFont(FONT_COMBO);
+        comboDialog.setBackground(COLOR_HEADER_DARK);
+        comboDialog.setForeground(COLOR_TEXT_WHITE);
+        for (FantaSquadra s : controller.getPartecipanti()) {
+            comboDialog.addItem(s);
+        }
+
+        JTextField txtDialogPrezzo = new JTextField();
+        txtDialogPrezzo.setFont(new Font(FONT_TABLE.getFamily(), Font.BOLD, 18));
+        txtDialogPrezzo.setHorizontalAlignment(JTextField.CENTER);
+        txtDialogPrezzo.setBackground(COLOR_HEADER_DARK);
+        txtDialogPrezzo.setForeground(COLOR_SUCCESS);
+        txtDialogPrezzo.setCaretColor(COLOR_SUCCESS);
+        txtDialogPrezzo.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1), new EmptyBorder(8, 8, 8, 8)));
+
+        JButton btnConferma = creaBottone("✔ ASSEGNA", COLOR_SUCCESS, Color.BLACK);
+
+        JLabel lblSq = new JLabel("Seleziona Fantasquadra:");
+        lblSq.setForeground(COLOR_TEXT_MUTED);
+        lblSq.setFont(FONT_TABLE);
+        JLabel lblPr = new JLabel("Prezzo d'acquisto (cr):");
+        lblPr.setForeground(COLOR_TEXT_MUTED);
+        lblPr.setFont(FONT_TABLE);
+
+        dialog.add(lblSq);
+        dialog.add(comboDialog);
+        dialog.add(lblPr);
+        dialog.add(txtDialogPrezzo);
+        dialog.add(btnConferma);
+
+        Runnable azionAssegna = () -> {
+            FantaSquadra sq = (FantaSquadra) comboDialog.getSelectedItem();
+            String tPrezzo = txtDialogPrezzo.getText().trim();
+            if (sq == null || tPrezzo.isEmpty()) return;
+
+            if (sq.haRaggiuntoLimite(gSel.getRuolo())) {
+                JOptionPane.showMessageDialog(dialog, sq.getNomeAllenatore() + " ha già il reparto completo per [" + gSel.getRuolo() + "]!", "Limite Raggiunto", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            try {
+                int prezzo = Integer.parseInt(tPrezzo);
+                if (controller.assegnaGiocatore(gSel, sq, prezzo)) {
+                    dialog.dispose();
+                    cercaGiocatori();
+                    aggiornaVista();
+                    mostraAnimazioneAssegnazione(sq); 
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "Crediti insufficienti!", "Errore Crediti", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Prezzo non valido!", "Errore Input", JOptionPane.ERROR_MESSAGE);
+            }
+        };
+
+        btnConferma.addActionListener(e -> azionAssegna.run());
+        txtDialogPrezzo.addActionListener(e -> azionAssegna.run());
+
+        SwingUtilities.invokeLater(txtDialogPrezzo::requestFocusInWindow);
+        dialog.setVisible(true);
+    }
+
+    private void mostraAnimazioneAssegnazione(FantaSquadra sq) {
+        JDialog popupTransizione = new JDialog(this, "", true);
+        popupTransizione.setUndecorated(true);
+        popupTransizione.setSize(480, 480);
+        popupTransizione.setLocationRelativeTo(this);
+
+        JPanel panelTrans = new JPanel(new BorderLayout(15, 15));
+        panelTrans.setBackground(COLOR_CARD_DARK);
+        panelTrans.setBorder(new CompoundBorder(new LineBorder(COLOR_ACCENT, 3), new EmptyBorder(25, 30, 30, 30)));
+
+        JLabel lblTitolo = new JLabel("🎉 ASSEGNATO!", SwingConstants.CENTER);
+        lblTitolo.setFont(new Font(FONT_HEADER_TITLE.getFamily(), Font.BOLD, 32));
+        lblTitolo.setForeground(COLOR_SUCCESS);
+
+        JLabel lblImg = new JLabel("", SwingConstants.CENTER);
+        ImageIcon fotoGrande = caricaFotoRidimensionata(sq.getNomeAllenatore(), 260, 260); 
+        if (fotoGrande != null) {
+            lblImg.setIcon(fotoGrande);
+        }
+
+        JLabel lblNome = new JLabel(sq.getNomeAllenatore().toUpperCase(), SwingConstants.CENTER);
+        lblNome.setFont(new Font(FONT_HEADER_TITLE.getFamily(), Font.BOLD, 28));
+        lblNome.setForeground(COLOR_TEXT_WHITE);
+
+        panelTrans.add(lblTitolo, BorderLayout.NORTH);
+        panelTrans.add(lblImg, BorderLayout.CENTER);
+        panelTrans.add(lblNome, BorderLayout.SOUTH);
+
+        popupTransizione.add(panelTrans);
+
+        Timer timer = new Timer(2000, e -> {
+            popupTransizione.dispose();
+            comboVisualizzaRosa.setSelectedItem(sq);
+            tabbedPane.setSelectedIndex(1); 
+        });
+        timer.setRepeats(false);
+        timer.start();
+
+        popupTransizione.setVisible(true);
+    }
+
+    private void apriDialogGestioneRosa() {
+        int row = tabellaRosaDettaglio.getSelectedRow();
+        if (row == -1) return;
+
+        FantaSquadra squadraSel = (FantaSquadra) comboVisualizzaRosa.getSelectedItem();
+        if (squadraSel == null) return;
+
+        String nomeGiocatore = String.valueOf(tableModelRosaDettaglio.getValueAt(row, 0));
+        Giocatore giocatoreSel = squadraSel.getRosa().stream()
+                .filter(g -> g.getNome().equals(nomeGiocatore))
+                .findFirst()
+                .orElse(null);
+
+        if (giocatoreSel == null) return;
+
+        String[] opzioni = {"Modifica Prezzo", "Rimuovi / Svincola", "Annulla"};
+        int scelta = JOptionPane.showOptionDialog(
+                this,
+                "Gestione " + giocatoreSel.getNome() + " (" + giocatoreSel.getRuolo() + ") - Pagato: " + giocatoreSel.getPrezzoAcquisto() + " cr",
+                "Gestione Calciatore Rosa",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                opzioni,
+                opzioni[0]
+        );
+
+        if (scelta == 0) {
+            String nuovoPrezzoStr = JOptionPane.showInputDialog(
+                    this,
+                    "Inserisci il nuovo prezzo per " + giocatoreSel.getNome() + ":",
+                    giocatoreSel.getPrezzoAcquisto()
+            );
+
+            if (nuovoPrezzoStr != null && !nuovoPrezzoStr.trim().isEmpty()) {
+                try {
+                    int nuovoPrezzo = Integer.parseInt(nuovoPrezzoStr.trim());
+                    int differenza = nuovoPrezzo - giocatoreSel.getPrezzoAcquisto();
+
+                    if (differenza > squadraSel.getCreditiRimanenti()) {
+                        JOptionPane.showMessageDialog(this, "Crediti insufficienti per questa modifica!", "Errore", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    squadraSel.setCreditiRimanenti(squadraSel.getCreditiRimanenti() - differenza);
+                    giocatoreSel.setPrezzoAcquisto(nuovoPrezzo);
+
+                    controller.assegnaGiocatore(null, squadraSel, 0);
+                    aggiornaVista();
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "Prezzo non valido!", "Errore", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        } else if (scelta == 1) {
+            int conferma = JOptionPane.showConfirmDialog(
+                    this,
+                    "Vuoi davvero svincolare " + giocatoreSel.getNome() + " e rimborsare " + giocatoreSel.getPrezzoAcquisto() + " cr a " + squadraSel.getNomeAllenatore() + "?",
+                    "Conferma Rimozione",
+                    JOptionPane.YES_NO_OPTION
+            );
+
+            if (conferma == JOptionPane.YES_OPTION) {
+                controller.rimuoviGiocatoreDaSquadra(squadraSel, giocatoreSel);
+                cercaGiocatori();
+                aggiornaVista();
+            }
+        }
+    }
+
+    private void aggiornaVista() {
+        comboVisualizzaRosa.removeAllItems();
+
+        for (FantaSquadra s : controller.getPartecipanti()) {
+            comboVisualizzaRosa.addItem(s);
+        }
+
+        tableModelTabellone.setRowCount(0);
+        for (FantaSquadra s : controller.getPartecipanti()) {
+            ImageIcon avatar = caricaFotoRidimensionata(s.getNomeAllenatore(), AVATAR_TABELLONE_SIZE, AVATAR_TABELLONE_SIZE);
+            tableModelTabellone.addRow(new Object[]{
+                avatar,
+                s.getNomeAllenatore(),
+                s.getCreditiRimanenti() + " cr",
+                formattaRuolo(s, "P"),
+                formattaRuolo(s, "D"),
+                formattaRuolo(s, "C"),
+                formattaRuolo(s, "A"),
+                s.getRosa().size() + "/25"
+            });
+        }
+
+        mostraRosaDettagliata();
+    }
+
+    private String formattaRuolo(FantaSquadra s, String ruolo) {
+        long attuali = s.getConteggioRuolo(ruolo);
+        int max = s.getLimiteRuolo(ruolo);
+        return attuali >= max ? attuali + "/" + max + " [OK]" : attuali + "/" + max;
+    }
+
+    private int getPrioritaRuolo(String ruolo) {
+        switch (ruolo) {
+            case "P": return 1;
+            case "D": return 2;
+            case "C": return 3;
+            case "A": return 4;
+            default: return 99;
+        }
+    }
+
+    private void mostraRosaDettagliata() {
+        FantaSquadra sel = (FantaSquadra) comboVisualizzaRosa.getSelectedItem();
+        if (sel == null) return;
+
+        lblTitoloRosa.setText(sel.getNomeAllenatore().toUpperCase());
+
+        String resocontoRuoli = String.format("<html><b>Crediti Rimanenti:</b> <font color='#A6E3A1'>%d cr</font><br><br>" +
+                "<b>Portieri (P):</b> %d/%d &nbsp;&nbsp;|&nbsp;&nbsp; " +
+                "<b>Difensori (D):</b> %d/%d<br>" +
+                "<b>Centrocampisti (C):</b> %d/%d &nbsp;&nbsp;|&nbsp;&nbsp; " +
+                "<b>Attaccanti (A):</b> %d/%d</html>",
+                sel.getCreditiRimanenti(),
+                sel.getConteggioRuolo("P"), sel.getLimiteRuolo("P"),
+                sel.getConteggioRuolo("D"), sel.getLimiteRuolo("D"),
+                sel.getConteggioRuolo("C"), sel.getLimiteRuolo("C"),
+                sel.getConteggioRuolo("A"), sel.getLimiteRuolo("A")
+        );
+
+        lblInfoRosa.setText(resocontoRuoli);
+
+        ImageIcon fotoGrande = caricaFotoRidimensionata(sel.getNomeAllenatore(), AVATAR_PROFILO_SIZE, AVATAR_PROFILO_SIZE);
+        lblFotoProfilo.setIcon(fotoGrande);
+
+        List<Giocatore> rosaOrdinata = new ArrayList<>(sel.getRosa());
+
+        rosaOrdinata.sort((g1, g2) -> {
+            int r1 = getPrioritaRuolo(g1.getRuolo());
+            int r2 = getPrioritaRuolo(g2.getRuolo());
+
+            if (r1 != r2) {
+                return Integer.compare(r1, r2);
+            }
+            return Integer.compare(g2.getPrezzoAcquisto(), g1.getPrezzoAcquisto());
+        });
+
+        tableModelRosaDettaglio.setRowCount(0);
+        for (Giocatore g : rosaOrdinata) {
+            tableModelRosaDettaglio.addRow(new Object[]{
+                g.getNome(),
+                g.getRuolo(),
+                g.getSquadra(),
+                g.getPrezzoAcquisto() + " cr"
+            });
+        }
+    }
+}
