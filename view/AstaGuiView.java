@@ -3,8 +3,11 @@ package view;
 import control.AstaController;
 import model.FantaSquadra;
 import model.Giocatore;
-
 import javax.imageio.ImageIO;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
 import javax.swing.*;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
@@ -69,7 +72,7 @@ public class AstaGuiView extends JFrame {
 
     // Dimensioni foto
     private static final int AVATAR_TABELLONE_SIZE = 125; 
-    private static final int AVATAR_PROFILO_SIZE = 240;
+    private static final int AVATAR_PROFILO_SIZE = 300;
 
     public AstaGuiView(AstaController controller) {
         // Uso del LookAndFeel di sistema/cross-platform standard per evitare bug grafici su Linux
@@ -719,46 +722,137 @@ private BufferedImage creaAvatarCircolare(
         dialog.setVisible(true);
     }
 
-    private void mostraAnimazioneAssegnazione(FantaSquadra sq) {
-        JDialog popupTransizione = new JDialog(this, "", true);
-        popupTransizione.setUndecorated(true);
-        popupTransizione.setSize(480, 480);
-        popupTransizione.setLocationRelativeTo(this);
+private void mostraAnimazioneAssegnazione(FantaSquadra sq) {
 
-        JPanel panelTrans = new JPanel(new BorderLayout(15, 15));
-        panelTrans.setBackground(COLOR_CARD_DARK);
-        panelTrans.setBorder(new CompoundBorder(new LineBorder(COLOR_ACCENT, 3), new EmptyBorder(25, 30, 30, 30)));
+    // Riproduce l'audio personalizzato dell'allenatore
+    riproduciAudioAllenatore(sq.getNomeAllenatore());
 
-        JLabel lblTitolo = new JLabel("🎉 ASSEGNATO!", SwingConstants.CENTER);
-        lblTitolo.setFont(new Font(FONT_HEADER_TITLE.getFamily(), Font.BOLD, 32));
-        lblTitolo.setForeground(COLOR_SUCCESS);
+    JDialog popupTransizione = new JDialog(this, "", true);
+    popupTransizione.setUndecorated(true);
 
-        JLabel lblImg = new JLabel("", SwingConstants.CENTER);
-        ImageIcon fotoGrande = caricaFotoRidimensionata(sq.getNomeAllenatore(), 260, 260); 
-        if (fotoGrande != null) {
-            lblImg.setIcon(fotoGrande);
+    // Finestra ingrandita
+    popupTransizione.setSize(1000, 1000);
+    popupTransizione.setLocationRelativeTo(this);
+
+    JPanel panelTrans = new JPanel(new BorderLayout(15, 15));
+    panelTrans.setBackground(COLOR_CARD_DARK);
+    panelTrans.setBorder(
+        new CompoundBorder(
+            new LineBorder(COLOR_ACCENT, 3),
+            new EmptyBorder(30, 35, 35, 35)
+        )
+    );
+
+    JLabel lblTitolo = new JLabel(
+        "🎉 ASSEGNATO!",
+        SwingConstants.CENTER
+    );
+
+    lblTitolo.setFont(
+        new Font(
+            FONT_HEADER_TITLE.getFamily(),
+            Font.BOLD,
+            48
+        )
+    );
+
+    lblTitolo.setForeground(COLOR_SUCCESS);
+
+    JLabel lblImg = new JLabel("", SwingConstants.CENTER);
+
+    // Foto ingrandita mantenendo le proporzioni
+    ImageIcon fotoGrande = caricaFotoRidimensionata(
+        sq.getNomeAllenatore(),
+        450,
+        450
+    );
+
+    if (fotoGrande != null) {
+        lblImg.setIcon(fotoGrande);
+    }
+
+    JLabel lblNome = new JLabel(
+        sq.getNomeAllenatore().toUpperCase(),
+        SwingConstants.CENTER
+    );
+
+    lblNome.setFont(
+        new Font(
+            FONT_HEADER_TITLE.getFamily(),
+            Font.BOLD,
+            32
+        )
+    );
+
+    lblNome.setForeground(COLOR_TEXT_WHITE);
+
+    panelTrans.add(lblTitolo, BorderLayout.NORTH);
+    panelTrans.add(lblImg, BorderLayout.CENTER);
+    panelTrans.add(lblNome, BorderLayout.SOUTH);
+
+    popupTransizione.add(panelTrans);
+
+    Timer timer = new Timer(2000, e -> {
+        popupTransizione.dispose();
+        comboVisualizzaRosa.setSelectedItem(sq);
+        tabbedPane.setSelectedIndex(1);
+    });
+
+    timer.setRepeats(false);
+    timer.start();
+
+    popupTransizione.setVisible(true);
+}
+private void riproduciAudioAllenatore(String nomeAllenatore) {
+    try {
+        File audioFile = new File("data/audio/" + nomeAllenatore + ".wav");
+
+        if (!audioFile.exists()) {
+            System.out.println("Audio non trovato: " + audioFile.getPath());
+            return;
         }
 
-        JLabel lblNome = new JLabel(sq.getNomeAllenatore().toUpperCase(), SwingConstants.CENTER);
-        lblNome.setFont(new Font(FONT_HEADER_TITLE.getFamily(), Font.BOLD, 28));
-        lblNome.setForeground(COLOR_TEXT_WHITE);
+        AudioInputStream audioStream =
+                AudioSystem.getAudioInputStream(audioFile);
 
-        panelTrans.add(lblTitolo, BorderLayout.NORTH);
-        panelTrans.add(lblImg, BorderLayout.CENTER);
-        panelTrans.add(lblNome, BorderLayout.SOUTH);
+        Clip clip = AudioSystem.getClip();
+        clip.open(audioStream);
 
-        popupTransizione.add(panelTrans);
+        // Volume specifico per ogni allenatore
+        float volume = 0.0f;
 
-        Timer timer = new Timer(2000, e -> {
-            popupTransizione.dispose();
-            comboVisualizzaRosa.setSelectedItem(sq);
-            tabbedPane.setSelectedIndex(1); 
-        });
-        timer.setRepeats(false);
-        timer.start();
+        if (nomeAllenatore.equalsIgnoreCase("Luca")) {
+            volume = -20.0f;
+        } else if (nomeAllenatore.equalsIgnoreCase("Luigi")) {
+            volume = -0.0f;
+        } else if (nomeAllenatore.equalsIgnoreCase("Manolo")) {
+            volume = -0.0f;
+        } else if (nomeAllenatore.equalsIgnoreCase("Zampa")) {
+            volume = -0.0f;
+        } else if (nomeAllenatore.equalsIgnoreCase("Leonardo")) {
+            volume = -0.0f;
+        } else if (nomeAllenatore.equalsIgnoreCase("Simone G")) {
+            volume = -0.0f;
+        } else if (nomeAllenatore.equalsIgnoreCase("Simone M")) {
+            volume = -0.0f;
+        } else if (nomeAllenatore.equalsIgnoreCase("Mattia")) {
+            volume = -0.0f;
+        }
 
-        popupTransizione.setVisible(true);
+        if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+            FloatControl gainControl =
+                    (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+
+            gainControl.setValue(volume);
+        }
+
+        clip.start();
+
+    } catch (Exception e) {
+        System.out.println("Errore nella riproduzione dell'audio: "
+                + e.getMessage());
     }
+}
 
     private void apriDialogGestioneRosa() {
         int row = tabellaRosaDettaglio.getSelectedRow();
