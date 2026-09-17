@@ -43,6 +43,7 @@ public class AstaGuiView extends JFrame {
     private JLabel lblInfoRosa;
     private JLabel lblFotoProfilo;
     private JLabel lblTitoloRosa;
+    private JLabel lblNomeSquadra;
 
     // Palette Dark High Contrast
     private final Color COLOR_BG_DARK = new Color(14, 14, 22);
@@ -63,12 +64,12 @@ public class AstaGuiView extends JFrame {
     private final Color COLOR_A = new Color(255, 120, 140);
 
     // Tipografia ingrandita
-    private final Font FONT_HEADER_TITLE = new Font("SansSerif", Font.BOLD, 26);
-    private final Font FONT_TABLE = new Font("SansSerif", Font.BOLD, 16);
-    private final Font FONT_TABLE_HEADER = new Font("SansSerif", Font.BOLD, 14);
-    private final Font FONT_BUTTON = new Font("SansSerif", Font.BOLD, 15);
-    private final Font FONT_COMBO = new Font("SansSerif", Font.BOLD, 16);
-    private final Font FONT_INFO = new Font("SansSerif", Font.BOLD, 16);
+    private final Font FONT_HEADER_TITLE = new Font("SansSerif", Font.BOLD, 30);
+    private final Font FONT_TABLE = new Font("SansSerif", Font.BOLD, 20);
+    private final Font FONT_TABLE_HEADER = new Font("SansSerif", Font.BOLD, 18);
+    private final Font FONT_BUTTON = new Font("SansSerif", Font.BOLD, 18);
+    private final Font FONT_COMBO = new Font("SansSerif", Font.BOLD, 20);
+    private final Font FONT_INFO = new Font("SansSerif", Font.BOLD, 20);
 
     // Dimensioni foto
     private static final int AVATAR_TABELLONE_SIZE = 125; 
@@ -108,10 +109,15 @@ public class AstaGuiView extends JFrame {
 
             if (risposta == JOptionPane.YES_OPTION && controller.caricaStatoSalvato()) {
                 JOptionPane.showMessageDialog(this, "Asta ripristinata con successo!");
+                aggiungiPartecipantiMancanti();
                 return;
             }
         }
 
+        aggiungiPartecipantiMancanti();
+    }
+
+    private void aggiungiPartecipantiMancanti() {
         final int BUDGET_FISSO = 500;
         String[] nomiPartecipanti = {
             "Luca", "Luigi", "Manolo", "Zampa",
@@ -119,7 +125,11 @@ public class AstaGuiView extends JFrame {
         };
 
         for (String nome : nomiPartecipanti) {
-            controller.aggiungiPartecipante(nome, BUDGET_FISSO);
+            boolean giaPresente = controller.getPartecipanti().stream()
+                    .anyMatch(s -> s.getNomeAllenatore().equalsIgnoreCase(nome));
+            if (!giaPresente) {
+                controller.aggiungiPartecipante(nome, BUDGET_FISSO);
+            }
         }
     }
 
@@ -166,7 +176,7 @@ public class AstaGuiView extends JFrame {
 
         tabellaGiocatori = new JTable(tableModel);
         tabellaGiocatori.setFont(FONT_TABLE);
-        tabellaGiocatori.setRowHeight(38);
+        tabellaGiocatori.setRowHeight(44);
         tabellaGiocatori.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tabellaGiocatori.setBackground(COLOR_CARD_DARK);
         tabellaGiocatori.setForeground(COLOR_TEXT_WHITE);
@@ -174,7 +184,7 @@ public class AstaGuiView extends JFrame {
         tabellaGiocatori.getTableHeader().setBackground(COLOR_HEADER_DARK);
         tabellaGiocatori.getTableHeader().setForeground(COLOR_ACCENT);
         tabellaGiocatori.getTableHeader().setFont(FONT_TABLE_HEADER);
-        tabellaGiocatori.getTableHeader().setPreferredSize(new Dimension(0, 38));
+        tabellaGiocatori.getTableHeader().setPreferredSize(new Dimension(0, 44));
         
         tabellaGiocatori.getColumnModel().getColumn(0).setPreferredWidth(260); 
         tabellaGiocatori.getColumnModel().getColumn(1).setPreferredWidth(60);  
@@ -221,7 +231,7 @@ public class AstaGuiView extends JFrame {
         tabbedPane.setBorder(BorderFactory.createEmptyBorder());
 
         // 1. Tabellone Generale
-        String[] colTabellone = {"Foto", "Squadra", "Crediti", "P", "D", "C", "A", "Tot"};
+        String[] colTabellone = {"Foto", "Allenatore", "Crediti", "P", "D", "C", "A", "Tot"};
         tableModelTabellone = new DefaultTableModel(colTabellone, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
@@ -250,6 +260,7 @@ public class AstaGuiView extends JFrame {
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 setBorder(new EmptyBorder(0, 15, 0, 15));
+                setHorizontalAlignment(column >= 2 ? SwingConstants.CENTER : SwingConstants.LEFT);
                 c.setFont(FONT_TABLE);
                 if (!isSelected) {
                     c.setBackground(row % 2 == 0 ? COLOR_CARD_DARK : COLOR_HEADER_DARK.darker());
@@ -337,8 +348,13 @@ public class AstaGuiView extends JFrame {
         panelInfoDestra.setBorder(new EmptyBorder(10, 24, 10, 10));
 
         lblTitoloRosa = new JLabel("NOME SQUADRA");
-        lblTitoloRosa.setFont(new Font("SansSerif", Font.BOLD, 32));
+        lblTitoloRosa.setFont(new Font("SansSerif", Font.BOLD, 36));
         lblTitoloRosa.setForeground(COLOR_ACCENT);
+
+        lblNomeSquadra = new JLabel();
+        lblNomeSquadra.setFont(new Font("SansSerif", Font.BOLD, 24));
+        lblNomeSquadra.setForeground(new Color(167, 224, 255));
+        lblNomeSquadra.setBorder(new EmptyBorder(6, 0, 0, 0));
 
         lblInfoRosa = new JLabel("Resoconto ruoli e crediti...");
         lblInfoRosa.setFont(FONT_INFO);
@@ -346,6 +362,7 @@ public class AstaGuiView extends JFrame {
         lblInfoRosa.setBorder(new EmptyBorder(18, 0, 0, 0));
 
         panelInfoDestra.add(lblTitoloRosa);
+        panelInfoDestra.add(lblNomeSquadra);
         panelInfoDestra.add(lblInfoRosa);
 
         JPanel panelHeaderCentro = new JPanel(new BorderLayout(20, 0));
@@ -652,43 +669,77 @@ private BufferedImage creaAvatarCircolare(
 
         if (gSel == null) return;
 
-        JDialog dialog = new JDialog(this, "Assegna " + gSel.getNome() + " (" + gSel.getRuolo() + ")", true);
-        dialog.setSize(420, 260);
+        JDialog dialog = new JDialog(this, "Assegna calciatore", true);
+        dialog.setSize(540, 380);
         dialog.setLocationRelativeTo(this);
-        dialog.setLayout(new GridLayout(5, 1, 10, 10));
         dialog.getContentPane().setBackground(COLOR_CARD_DARK);
         ((JPanel) dialog.getContentPane()).setBorder(new EmptyBorder(18, 18, 18, 18));
+
+        JPanel content = new JPanel(new GridBagLayout());
+        content.setBackground(COLOR_CARD_DARK);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 4, 8, 4);
+
+        JLabel lblGiocatore = new JLabel(gSel.getNome());
+        lblGiocatore.setForeground(COLOR_ACCENT);
+        lblGiocatore.setHorizontalAlignment(SwingConstants.CENTER);
+        lblGiocatore.setFont(new Font(FONT_HEADER_TITLE.getFamily(), Font.BOLD, 28));
+        gbc.gridwidth = 2;
+        gbc.weightx = 1;
+        gbc.gridy = 0;
+        content.add(lblGiocatore, gbc);
+
+        JLabel lblSq = new JLabel("Seleziona Fantasquadra:");
+        lblSq.setForeground(COLOR_TEXT_MUTED);
+        lblSq.setFont(FONT_TABLE);
+        gbc.gridwidth = 1;
+        gbc.gridy = 1;
+        content.add(lblSq, gbc);
 
         JComboBox<FantaSquadra> comboDialog = new JComboBox<>();
         comboDialog.setFont(FONT_COMBO);
         comboDialog.setBackground(COLOR_HEADER_DARK);
         comboDialog.setForeground(COLOR_TEXT_WHITE);
+        comboDialog.setBorder(new LineBorder(COLOR_BORDER, 1));
         for (FantaSquadra s : controller.getPartecipanti()) {
             comboDialog.addItem(s);
         }
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        content.add(comboDialog, gbc);
+
+        JLabel lblPr = new JLabel("Prezzo d'acquisto (cr):");
+        lblPr.setForeground(COLOR_TEXT_MUTED);
+        lblPr.setFont(FONT_TABLE);
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0;
+        content.add(lblPr, gbc);
 
         JTextField txtDialogPrezzo = new JTextField();
-        txtDialogPrezzo.setFont(new Font(FONT_TABLE.getFamily(), Font.BOLD, 18));
+        txtDialogPrezzo.setFont(new Font(FONT_TABLE.getFamily(), Font.BOLD, 28));
         txtDialogPrezzo.setHorizontalAlignment(JTextField.CENTER);
         txtDialogPrezzo.setBackground(COLOR_HEADER_DARK);
         txtDialogPrezzo.setForeground(COLOR_SUCCESS);
         txtDialogPrezzo.setCaretColor(COLOR_SUCCESS);
-        txtDialogPrezzo.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1), new EmptyBorder(8, 8, 8, 8)));
+        txtDialogPrezzo.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1), new EmptyBorder(10, 12, 10, 12)));
+        txtDialogPrezzo.setPreferredSize(new Dimension(140, 52));
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        content.add(txtDialogPrezzo, gbc);
 
         JButton btnConferma = creaBottone("✔ ASSEGNA", COLOR_SUCCESS, Color.BLACK);
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        content.add(btnConferma, gbc);
 
-        JLabel lblSq = new JLabel("Seleziona Fantasquadra:");
-        lblSq.setForeground(COLOR_TEXT_MUTED);
-        lblSq.setFont(FONT_TABLE);
-        JLabel lblPr = new JLabel("Prezzo d'acquisto (cr):");
-        lblPr.setForeground(COLOR_TEXT_MUTED);
-        lblPr.setFont(FONT_TABLE);
-
-        dialog.add(lblSq);
-        dialog.add(comboDialog);
-        dialog.add(lblPr);
-        dialog.add(txtDialogPrezzo);
-        dialog.add(btnConferma);
+        dialog.setLayout(new BorderLayout(10, 10));
+        dialog.add(content, BorderLayout.CENTER);
 
         Runnable azionAssegna = () -> {
             FantaSquadra sq = (FantaSquadra) comboDialog.getSelectedItem();
@@ -706,7 +757,7 @@ private BufferedImage creaAvatarCircolare(
                     dialog.dispose();
                     cercaGiocatori();
                     aggiornaVista();
-                    mostraAnimazioneAssegnazione(sq); 
+                    mostraAnimazioneAssegnazione(sq, gSel); 
                 } else {
                     JOptionPane.showMessageDialog(dialog, "Crediti insufficienti!", "Errore Crediti", JOptionPane.ERROR_MESSAGE);
                 }
@@ -722,7 +773,7 @@ private BufferedImage creaAvatarCircolare(
         dialog.setVisible(true);
     }
 
-private void mostraAnimazioneAssegnazione(FantaSquadra sq) {
+private void mostraAnimazioneAssegnazione(FantaSquadra sq, Giocatore giocatore) {
 
     // Riproduce l'audio personalizzato dell'allenatore
     riproduciAudioAllenatore(sq.getNomeAllenatore());
@@ -771,24 +822,22 @@ private void mostraAnimazioneAssegnazione(FantaSquadra sq) {
         lblImg.setIcon(fotoGrande);
     }
 
-    JLabel lblNome = new JLabel(
-        sq.getNomeAllenatore().toUpperCase(),
+    JLabel lblAssegnazione = new JLabel(
+        sq.getNomeAllenatore().toUpperCase() + " HA PRESO " + giocatore.getNome().toUpperCase(),
         SwingConstants.CENTER
     );
-
-    lblNome.setFont(
+    lblAssegnazione.setFont(
         new Font(
             FONT_HEADER_TITLE.getFamily(),
             Font.BOLD,
-            32
+            42
         )
     );
-
-    lblNome.setForeground(COLOR_TEXT_WHITE);
+    lblAssegnazione.setForeground(COLOR_ACCENT);
 
     panelTrans.add(lblTitolo, BorderLayout.NORTH);
     panelTrans.add(lblImg, BorderLayout.CENTER);
-    panelTrans.add(lblNome, BorderLayout.SOUTH);
+    panelTrans.add(lblAssegnazione, BorderLayout.SOUTH);
 
     popupTransizione.add(panelTrans);
 
@@ -969,6 +1018,9 @@ private void riproduciAudioAllenatore(String nomeAllenatore) {
         if (sel == null) return;
 
         lblTitoloRosa.setText(sel.getNomeAllenatore().toUpperCase());
+
+        String nomeSquadra = controller.getNomeSquadraFantacalcio(sel.getNomeAllenatore());
+        lblNomeSquadra.setText(nomeSquadra != null && !nomeSquadra.trim().isEmpty() ? nomeSquadra : "");
 
         String resocontoRuoli = String.format("<html><b>Crediti Rimanenti:</b> <font color='#A6E3A1'>%d cr</font><br><br>" +
                 "<b>Portieri (P):</b> %d/%d &nbsp;&nbsp;|&nbsp;&nbsp; " +

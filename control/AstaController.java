@@ -9,12 +9,14 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AstaController {
     private List<Giocatore> listone;
     private List<FantaSquadra> partecipanti;
-    private final String PATH_SALVATAGGIO = "data/stato_asta.txt";
+    private final String PATH_ROSE_IMPORT = "data/rose_import.csv";
 
     public AstaController() {
         this.listone = new ArrayList<>();
@@ -83,17 +85,91 @@ public class AstaController {
 
     // Metodo di Salvataggio su File in tempo reale
     private void salvaStato() {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(PATH_SALVATAGGIO))) {
+        salvaRoseImport();
+    }
+
+    public String getNomeSquadraFantacalcio(String nomeAllenatore) {
+        if (nomeAllenatore == null) return "";
+        String n = nomeAllenatore.trim();
+
+        switch (n.toLowerCase()) {
+            case "manolo": return "AC TUA";
+            case "simone m": return "FUTURO INTER-NAZIONALE";
+            case "simone p": return "FUTURO INTER-NAZIONALE";
+            case "simone g": return "lager mania";
+            case "luigi": return "Locatelli amministrami casa";
+            case "leonardo": return "MacLautaro";
+            case "mattia": return "Reggina Celik";
+            case "zampa": return "Sporting GC";
+            case "luca": return "Tua madre";
+            case "ac tua": return "AC TUA";
+            case "futuro inter-nazionale": return "FUTURO INTER-NAZIONALE";
+            case "lager mania": return "lager mania";
+            case "locatelli amministrami casa": return "Locatelli amministrami casa";
+            case "locatelli amministrami casa gigi": return "Locatelli amministrami casa";
+            case "maclautaro": return "MacLautaro";
+            case "reggina celik": return "Reggina Celik";
+            case "sporting gc": return "Sporting GC";
+            case "tua madre": return "Tua madre";
+            default: return n;
+        }
+    }
+
+    public String getAllenatoreDaNomeSquadra(String nomeSquadra) {
+        if (nomeSquadra == null) return "";
+        String n = nomeSquadra.trim();
+
+        switch (n.toLowerCase()) {
+            case "ac tua": return "Manolo";
+            case "futuro inter-nazionale": return "Simone M";
+            case "lager mania": return "Simone G";
+            case "locatelli amministrami casa": return "Luigi";
+            case "maclautaro": return "Leonardo";
+            case "reggina celik": return "Mattia";
+            case "sporting gc": return "Zampa";
+            case "tua madre": return "Luca";
+            default: return n;
+        }
+    }
+
+    private String normalizzaNomeSquadra(String nome) {
+        if (nome == null) return "";
+        String n = nome.trim();
+
+        switch (n.toLowerCase()) {
+            case "manolo": return "AC TUA";
+            case "simone m": return "FUTURO INTER-NAZIONALE";
+            case "simone p": return "FUTURO INTER-NAZIONALE";
+            case "simone g": return "lager mania";
+            case "luigi": return "Locatelli amministrami casa";
+            case "leonardo": return "MacLautaro";
+            case "mattia": return "Reggina Celik";
+            case "zampa": return "Sporting GC";
+            case "luca": return "Tua madre";
+            case "ac tua": return "AC TUA";
+            case "futuro inter-nazionale": return "FUTURO INTER-NAZIONALE";
+            case "lager mania": return "lager mania";
+            case "locatelli amministrami casa": return "Locatelli amministrami casa";
+            case "locatelli amministrami casa gigi": return "Locatelli amministrami casa";
+            case "maclautaro": return "MacLautaro";
+            case "reggina celik": return "Reggina Celik";
+            case "sporting gc": return "Sporting GC";
+            case "tua madre": return "Tua madre";
+            default: return n;
+        }
+    }
+
+    private void salvaRoseImport() {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(PATH_ROSE_IMPORT))) {
             for (FantaSquadra fs : partecipanti) {
-                bw.write("SQUADRA:" + fs.getNomeAllenatore() + ";" + fs.getCreditiRimanenti());
-                bw.newLine();
+                String nomeSquadra = getNomeSquadraFantacalcio(fs.getNomeAllenatore());
                 for (Giocatore g : fs.getRosa()) {
-                    bw.write("GIOCATORE:" + g.getId() + ";" + g.getRuolo() + ";" + g.getNome() + ";" + g.getSquadra() + ";" + g.getPrezzoAcquisto());
+                    bw.write(nomeSquadra + "," + g.getId() + "," + g.getPrezzoAcquisto());
                     bw.newLine();
                 }
             }
         } catch (IOException e) {
-            System.err.println("Errore durante il salvataggio automatico: " + e.getMessage());
+            System.err.println("Errore durante il salvataggio del CSV rose: " + e.getMessage());
         }
     }
 
@@ -122,7 +198,7 @@ public boolean rimuoviGiocatoreDaSquadra(FantaSquadra squadra, Giocatore giocato
 
 // Verifica se esiste un file di salvataggio valido
 public boolean esisteSalvataggio() {
-    File file = new File(PATH_SALVATAGGIO);
+    File file = new File(PATH_ROSE_IMPORT);
     return file.exists() && file.length() > 0;
 }
 
@@ -130,53 +206,50 @@ public boolean esisteSalvataggio() {
 public boolean caricaStatoSalvato() {
     if (!esisteSalvataggio()) return false;
 
-    try (BufferedReader br = new BufferedReader(new FileReader(PATH_SALVATAGGIO))) {
+    try (BufferedReader br = new BufferedReader(new FileReader(PATH_ROSE_IMPORT))) {
         String riga;
-        FantaSquadra squadraCorrente = null;
-        
-        // 1. Svuotiamo la lista per evitare duplicati
+        Map<String, FantaSquadra> squadrePerNome = new HashMap<>();
+
         partecipanti.clear();
 
         while ((riga = br.readLine()) != null) {
-            String[] parti = riga.split(":");
-            if (parti.length < 2) continue;
+            if (riga.trim().isEmpty()) continue;
 
-            String tipo = parti[0];
-            String[] dati = parti[1].split(";");
+            String[] dati = riga.split(",");
+            if (dati.length < 3) continue;
 
-            if (tipo.equals("SQUADRA")) {
-                String nome = dati[0];
-                int creditiResiduiSalvati = Integer.parseInt(dati[1]);
-                
-                // Ricreiamo la squadra impostando direttamente i crediti presi dal file
-                squadraCorrente = new FantaSquadra(nome, creditiResiduiSalvati);
-                partecipanti.add(squadraCorrente);
+            String nomeSquadraCsv = normalizzaNomeSquadra(dati[0].trim());
+            String nomeAllenatore = getAllenatoreDaNomeSquadra(nomeSquadraCsv);
+            int idGiocatore = Integer.parseInt(dati[1].trim());
+            int prezzo = Integer.parseInt(dati[2].trim());
 
-            } else if (tipo.equals("GIOCATORE") && squadraCorrente != null) {
-                int id = Integer.parseInt(dati[0]);
-                int prezzo = Integer.parseInt(dati[4]);
-
-                // Cerchiamo il giocatore nel listone generale
-                Giocatore g = listone.stream()
-                        .filter(calc -> calc.getId() == id)
-                        .findFirst()
-                        .orElse(null);
-
-                if (g != null) {
-                    g.setPrezzoAcquisto(prezzo);
-                    
-                    // IMPORTANTE: Aggiungiamo alla rosa SENZA chiamare compraGiocatore()
-                    // per evitare di scalare di nuovo i crediti!
-                    squadraCorrente.getRosa().add(g);
-                    
-                    // Rimuoviamo il giocatore dal listone dei disponibili
-                    listone.remove(g);
-                }
+            FantaSquadra squadra = squadrePerNome.get(nomeAllenatore);
+            if (squadra == null) {
+                squadra = new FantaSquadra(nomeAllenatore, 500);
+                squadrePerNome.put(nomeAllenatore, squadra);
+                partecipanti.add(squadra);
             }
+
+            Giocatore g = listone.stream()
+                    .filter(calc -> calc.getId() == idGiocatore)
+                    .findFirst()
+                    .orElse(null);
+
+            if (g != null) {
+                g.setPrezzoAcquisto(prezzo);
+                squadra.getRosa().add(g);
+                listone.remove(g);
+            }
+
+            int creditiDisponibili = 500 - squadra.getRosa().stream().mapToInt(Giocatore::getPrezzoAcquisto).sum();
+            squadra.setCreditiRimanenti(creditiDisponibili);
         }
         return true;
     } catch (IOException e) {
         System.err.println("Errore nel ripristino: " + e.getMessage());
+        return false;
+    } catch (NumberFormatException e) {
+        System.err.println("Formato CSV non valido per il ripristino: " + e.getMessage());
         return false;
     }
 }
