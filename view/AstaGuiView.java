@@ -63,13 +63,13 @@ public class AstaGuiView extends JFrame {
     private final Color COLOR_C = new Color(255, 215, 110);
     private final Color COLOR_A = new Color(255, 120, 140);
 
-    // Tipografia ingrandita
-    private final Font FONT_HEADER_TITLE = new Font("SansSerif", Font.BOLD, 30);
-    private final Font FONT_TABLE = new Font("SansSerif", Font.BOLD, 20);
-    private final Font FONT_TABLE_HEADER = new Font("SansSerif", Font.BOLD, 18);
-    private final Font FONT_BUTTON = new Font("SansSerif", Font.BOLD, 18);
-    private final Font FONT_COMBO = new Font("SansSerif", Font.BOLD, 20);
-    private final Font FONT_INFO = new Font("SansSerif", Font.BOLD, 20);
+    // Tipografia ingrandita per una UI più leggibile
+    private final Font FONT_HEADER_TITLE = new Font("SansSerif", Font.BOLD, 38);
+    private final Font FONT_TABLE = new Font("SansSerif", Font.BOLD, 22);
+    private final Font FONT_TABLE_HEADER = new Font("SansSerif", Font.BOLD, 20);
+    private final Font FONT_BUTTON = new Font("SansSerif", Font.BOLD, 20);
+    private final Font FONT_COMBO = new Font("SansSerif", Font.BOLD, 22);
+    private final Font FONT_INFO = new Font("SansSerif", Font.BOLD, 22);
 
     // Dimensioni foto
     private static final int AVATAR_TABELLONE_SIZE = 125; 
@@ -87,7 +87,7 @@ public class AstaGuiView extends JFrame {
         controller.caricaListoneCSV("data/giocatori.csv");
 
         setTitle("⚡ COMPAGNI DI MERENDE - ASTA FANTACALCIO");
-        setSize(1550, 950);
+        setSize(1700, 1000);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(COLOR_BG_DARK);
@@ -348,11 +348,11 @@ public class AstaGuiView extends JFrame {
         panelInfoDestra.setBorder(new EmptyBorder(10, 24, 10, 10));
 
         lblTitoloRosa = new JLabel("NOME SQUADRA");
-        lblTitoloRosa.setFont(new Font("SansSerif", Font.BOLD, 36));
+        lblTitoloRosa.setFont(new Font("SansSerif", Font.BOLD, 42));
         lblTitoloRosa.setForeground(COLOR_ACCENT);
 
         lblNomeSquadra = new JLabel();
-        lblNomeSquadra.setFont(new Font("SansSerif", Font.BOLD, 24));
+        lblNomeSquadra.setFont(new Font("SansSerif", Font.BOLD, 30));
         lblNomeSquadra.setForeground(new Color(167, 224, 255));
         lblNomeSquadra.setBorder(new EmptyBorder(6, 0, 0, 0));
 
@@ -685,7 +685,7 @@ private BufferedImage creaAvatarCircolare(
         JLabel lblGiocatore = new JLabel(gSel.getNome());
         lblGiocatore.setForeground(COLOR_ACCENT);
         lblGiocatore.setHorizontalAlignment(SwingConstants.CENTER);
-        lblGiocatore.setFont(new Font(FONT_HEADER_TITLE.getFamily(), Font.BOLD, 28));
+        lblGiocatore.setFont(new Font(FONT_HEADER_TITLE.getFamily(), Font.BOLD, 32));
         gbc.gridwidth = 2;
         gbc.weightx = 1;
         gbc.gridy = 0;
@@ -719,7 +719,7 @@ private BufferedImage creaAvatarCircolare(
         content.add(lblPr, gbc);
 
         JTextField txtDialogPrezzo = new JTextField();
-        txtDialogPrezzo.setFont(new Font(FONT_TABLE.getFamily(), Font.BOLD, 28));
+        txtDialogPrezzo.setFont(new Font(FONT_TABLE.getFamily(), Font.BOLD, 30));
         txtDialogPrezzo.setHorizontalAlignment(JTextField.CENTER);
         txtDialogPrezzo.setBackground(COLOR_HEADER_DARK);
         txtDialogPrezzo.setForeground(COLOR_SUCCESS);
