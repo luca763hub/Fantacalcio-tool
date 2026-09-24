@@ -1,6 +1,6 @@
 # Guida all’asta di fantacalcio
 
-[![Sostieni il progetto (offrimi una birra)](https://img.shields.io/badge/Sostieni%20il%20progetto-offrimi%20una%20birra-FFB000?style=for-the-badge&logo=coffee)](https://www.buymeacoffee.com/)
+[![Sostieni il progetto (offrimi una caffè)](https://img.shields.io/badge/Sostieni%20il%20progetto-offrimi%20una%20birra-FFB000?style=for-the-badge&logo=coffee)](buymeacoffee.com/lucayu763a)
 
 Questa guida spiega come usare il programma, un passaggio alla volta.
 
