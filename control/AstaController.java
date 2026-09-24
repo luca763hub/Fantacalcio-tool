@@ -12,11 +12,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public class AstaController {
     private List<Giocatore> listone;
     private List<FantaSquadra> partecipanti;
     private final String PATH_ROSE_IMPORT = "data/rose_import.csv";
+    private final String PATH_SETUP_ASTA = "data/setup_asta.properties";
 
     public AstaController() {
         this.listone = new ArrayList<>();
@@ -57,8 +59,12 @@ public class AstaController {
 
     // Aggiungi partecipante + AUTOSAVE
     public void aggiungiPartecipante(String nome, int budgetIniziale) {
-        partecipanti.add(new FantaSquadra(nome, budgetIniziale));
-        salvaStato(); // Salvataggio automatico
+        aggiungiPartecipante(nome, getNomeSquadraFantacalcio(nome), budgetIniziale);
+    }
+
+    public void aggiungiPartecipante(String nomeAllenatore, String nomeSquadra, int budgetIniziale) {
+        partecipanti.add(new FantaSquadra(nomeAllenatore, nomeSquadra, budgetIniziale));
+        salvaStato();
     }
 
     // Ricerca calciatori
@@ -83,13 +89,57 @@ public class AstaController {
         return successo;
     }
 
+    public boolean rinominaPartecipante(FantaSquadra squadra, String nuovoAllenatore, String nuovaSquadra) {
+        if (squadra == null || nuovoAllenatore == null || nuovaSquadra == null) return false;
+        String allenatore = nuovoAllenatore.trim();
+        String nomeSquadra = nuovaSquadra.trim();
+        if (allenatore.isEmpty() || nomeSquadra.isEmpty()) return false;
+
+        for (FantaSquadra partecipante : partecipanti) {
+            if (partecipante == squadra) continue;
+            if (partecipante.getNomeAllenatore().equalsIgnoreCase(allenatore)
+                    || partecipante.getNomeSquadra().equalsIgnoreCase(nomeSquadra)) {
+                return false;
+            }
+        }
+
+        squadra.setNomeAllenatore(allenatore);
+        squadra.setNomeSquadra(nomeSquadra);
+        salvaStato();
+        return true;
+    }
+
     // Metodo di Salvataggio su File in tempo reale
     private void salvaStato() {
+        salvaSetupAsta();
         salvaRoseImport();
+    }
+
+    private void salvaSetupAsta() {
+        Properties setup = new Properties();
+        setup.setProperty("numeroPartecipanti", Integer.toString(partecipanti.size()));
+        for (int i = 0; i < partecipanti.size(); i++) {
+            FantaSquadra partecipante = partecipanti.get(i);
+            String prefisso = "partecipante." + i + ".";
+            setup.setProperty(prefisso + "allenatore", partecipante.getNomeAllenatore());
+            setup.setProperty(prefisso + "squadra", partecipante.getNomeSquadra());
+            setup.setProperty(prefisso + "budget", Integer.toString(partecipante.getCreditiRimanenti()
+                    + partecipante.getRosa().stream().mapToInt(Giocatore::getPrezzoAcquisto).sum()));
+        }
+        try (java.io.OutputStream out = new java.io.FileOutputStream(PATH_SETUP_ASTA)) {
+            setup.store(out, "Configurazione asta");
+        } catch (IOException e) {
+            System.err.println("Errore durante il salvataggio della configurazione: " + e.getMessage());
+        }
     }
 
     public String getNomeSquadraFantacalcio(String nomeAllenatore) {
         if (nomeAllenatore == null) return "";
+        for (FantaSquadra partecipante : partecipanti) {
+            if (partecipante.getNomeAllenatore().equalsIgnoreCase(nomeAllenatore.trim())) {
+                return partecipante.getNomeSquadra();
+            }
+        }
         String n = nomeAllenatore.trim();
 
         switch (n.toLowerCase()) {
@@ -162,7 +212,7 @@ public class AstaController {
     private void salvaRoseImport() {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(PATH_ROSE_IMPORT))) {
             for (FantaSquadra fs : partecipanti) {
-                String nomeSquadra = getNomeSquadraFantacalcio(fs.getNomeAllenatore());
+                String nomeSquadra = fs.getNomeSquadra();
                 for (Giocatore g : fs.getRosa()) {
                     bw.write(nomeSquadra + "," + g.getId() + "," + g.getPrezzoAcquisto());
                     bw.newLine();
@@ -198,34 +248,61 @@ public boolean rimuoviGiocatoreDaSquadra(FantaSquadra squadra, Giocatore giocato
 
 // Verifica se esiste un file di salvataggio valido
 public boolean esisteSalvataggio() {
-    File file = new File(PATH_ROSE_IMPORT);
-    return file.exists() && file.length() > 0;
+    File setup = new File(PATH_SETUP_ASTA);
+    File rose = new File(PATH_ROSE_IMPORT);
+    return (setup.exists() && setup.length() > 0) || (rose.exists() && rose.length() > 0);
 }
 
 // Carica lo stato delle squadre e dei calciatori dal file salvato
 public boolean caricaStatoSalvato() {
     if (!esisteSalvataggio()) return false;
 
-    try (BufferedReader br = new BufferedReader(new FileReader(PATH_ROSE_IMPORT))) {
-        String riga;
-        Map<String, FantaSquadra> squadrePerNome = new HashMap<>();
-
+    try {
         partecipanti.clear();
+        Map<String, FantaSquadra> squadrePerNome = new HashMap<>();
+        File fileSetup = new File(PATH_SETUP_ASTA);
+        if (fileSetup.exists()) {
+            Properties setup = new Properties();
+            try (java.io.InputStream in = new java.io.FileInputStream(fileSetup)) {
+                setup.load(in);
+            }
+            int numeroPartecipanti = Integer.parseInt(setup.getProperty("numeroPartecipanti", "0"));
+            for (int i = 0; i < numeroPartecipanti; i++) {
+                String prefisso = "partecipante." + i + ".";
+                String allenatore = setup.getProperty(prefisso + "allenatore", "").trim();
+                String nomeSquadra = setup.getProperty(prefisso + "squadra", "").trim();
+                int budget = Integer.parseInt(setup.getProperty(prefisso + "budget", "500"));
+                if (!allenatore.isEmpty() && !nomeSquadra.isEmpty()) {
+                    FantaSquadra squadra = new FantaSquadra(allenatore, nomeSquadra, budget);
+                    squadrePerNome.put(nomeSquadra, squadra);
+                    partecipanti.add(squadra);
+                }
+            }
+        }
 
+        File fileRose = new File(PATH_ROSE_IMPORT);
+        if (!fileRose.exists()) return !partecipanti.isEmpty();
+        try (BufferedReader br = new BufferedReader(new FileReader(fileRose))) {
+        String riga;
         while ((riga = br.readLine()) != null) {
             if (riga.trim().isEmpty()) continue;
 
             String[] dati = riga.split(",");
             if (dati.length < 3) continue;
 
-            String nomeSquadraCsv = normalizzaNomeSquadra(dati[0].trim());
-            String nomeAllenatore = getAllenatoreDaNomeSquadra(nomeSquadraCsv);
+            String nomeSquadraCsv = dati[0].trim();
+            String nomeSquadraLegacy = normalizzaNomeSquadra(nomeSquadraCsv);
+            String nomeAllenatore = getAllenatoreDaNomeSquadra(nomeSquadraLegacy);
             int idGiocatore = Integer.parseInt(dati[1].trim());
             int prezzo = Integer.parseInt(dati[2].trim());
 
-            FantaSquadra squadra = squadrePerNome.get(nomeAllenatore);
+            FantaSquadra squadra = squadrePerNome.get(nomeSquadraCsv);
             if (squadra == null) {
-                squadra = new FantaSquadra(nomeAllenatore, 500);
+                squadra = squadrePerNome.get(nomeAllenatore);
+            }
+            if (squadra == null) {
+                squadra = new FantaSquadra(nomeAllenatore, nomeSquadraLegacy, 500);
+                squadrePerNome.put(nomeSquadraCsv, squadra);
                 squadrePerNome.put(nomeAllenatore, squadra);
                 partecipanti.add(squadra);
             }
@@ -239,10 +316,9 @@ public boolean caricaStatoSalvato() {
                 g.setPrezzoAcquisto(prezzo);
                 squadra.getRosa().add(g);
                 listone.remove(g);
+                squadra.setCreditiRimanenti(squadra.getCreditiRimanenti() - prezzo);
             }
-
-            int creditiDisponibili = 500 - squadra.getRosa().stream().mapToInt(Giocatore::getPrezzoAcquisto).sum();
-            squadra.setCreditiRimanenti(creditiDisponibili);
+        }
         }
         return true;
     } catch (IOException e) {

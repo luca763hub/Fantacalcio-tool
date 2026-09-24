@@ -24,7 +24,9 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             AstaController controller = new AstaController();
             AstaGuiView view = new AstaGuiView(controller);
-            view.setVisible(true);
+            if (view.isSetupCompletato()) {
+                view.setVisible(true);
+            }
         });
     }
 }

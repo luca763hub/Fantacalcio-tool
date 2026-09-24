@@ -28,6 +28,7 @@ import java.util.List;
 
 public class AstaGuiView extends JFrame {
     private AstaController controller;
+    private boolean setupCompletato;
 
     private JTextField txtRicerca;
     private JTable tabellaGiocatori;
@@ -92,45 +93,279 @@ public class AstaGuiView extends JFrame {
         setLocationRelativeTo(null);
         getContentPane().setBackground(COLOR_BG_DARK);
 
-        configuraPartecipantiPredefiniti();
+        if (!configuraPartecipanti()) {
+            dispose();
+            return;
+        }
         inizializzaComponenti();
         aggiornaVista();
+        setupCompletato = true;
     }
 
-    private void configuraPartecipantiPredefiniti() {
+    public boolean isSetupCompletato() {
+        return setupCompletato;
+    }
+
+    private boolean configuraPartecipanti() {
         if (controller.esisteSalvataggio()) {
-            int risposta = JOptionPane.showConfirmDialog(
-                    this,
-                    "Trovata un'asta salvata precedente. Vuoi riprenderla?",
-                    "Ripristino Asta",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-            );
-
-            if (risposta == JOptionPane.YES_OPTION && controller.caricaStatoSalvato()) {
-                JOptionPane.showMessageDialog(this, "Asta ripristinata con successo!");
-                aggiungiPartecipantiMancanti();
-                return;
+            int sceltaRipristino = mostraDialogRipristino();
+            if (sceltaRipristino == JOptionPane.YES_OPTION && controller.caricaStatoSalvato()) {
+                return true;
+            }
+            if (sceltaRipristino == JOptionPane.CANCEL_OPTION) {
+                return false;
             }
         }
 
-        aggiungiPartecipantiMancanti();
+        ConfigurazioneAsta configurazione = mostraDialogConfigurazioneAsta();
+        if (configurazione == null) {
+            return false;
+        }
+        int numeroPartecipanti = configurazione.numeroPartecipanti;
+
+        List<JTextField> campiAllenatore = new ArrayList<>();
+        List<JTextField> campiSquadra = new ArrayList<>();
+        JPanel righe = new JPanel();
+        righe.setLayout(new BoxLayout(righe, BoxLayout.Y_AXIS));
+        righe.setBackground(COLOR_BG_DARK);
+
+        for (int i = 1; i <= numeroPartecipanti; i++) {
+            JPanel riga = new JPanel(new BorderLayout(12, 8));
+            riga.setBackground(COLOR_CARD_DARK);
+            riga.setBorder(new CompoundBorder(
+                    new LineBorder(COLOR_BORDER, 1, true),
+                    new EmptyBorder(12, 14, 14, 14)
+            ));
+            riga.setMaximumSize(new Dimension(Integer.MAX_VALUE, 112));
+
+            JLabel indice = new JLabel(String.format("PARTECIPANTE %02d", i));
+            indice.setFont(new Font("SansSerif", Font.BOLD, 13));
+            indice.setForeground(COLOR_ACCENT);
+            riga.add(indice, BorderLayout.NORTH);
+
+            JPanel campi = new JPanel(new GridLayout(1, 2, 12, 0));
+            campi.setOpaque(false);
+            JTextField campoAllenatore = creaCampoSetup();
+            JTextField campoSquadra = creaCampoSetup();
+            campiAllenatore.add(campoAllenatore);
+            campiSquadra.add(campoSquadra);
+            campi.add(creaGruppoCampo("Nome partecipante", campoAllenatore));
+            campi.add(creaGruppoCampo("Nome squadra", campoSquadra));
+            riga.add(campi, BorderLayout.CENTER);
+            righe.add(riga);
+            righe.add(Box.createVerticalStrut(8));
+        }
+
+        JScrollPane scroll = new JScrollPane(righe);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(COLOR_BG_DARK);
+        scroll.getVerticalScrollBar().setUnitIncrement(18);
+
+        JDialog dialog = creaDialogSetup("Nomi partecipanti e squadre");
+        JPanel contenuto = pannelloSetup("Completa la tua lega", "I campi sono vuoti: inserisci un nome per ogni partecipante e per ogni squadra.");
+        contenuto.add(scroll, BorderLayout.CENTER);
+
+        JLabel errore = new JLabel(" ");
+        errore.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        errore.setForeground(COLOR_DANGER);
+        JButton annulla = creaBottone("Annulla", COLOR_HEADER_DARK, COLOR_TEXT_WHITE);
+        JButton conferma = creaBottone("Crea asta", COLOR_ACCENT, Color.BLACK);
+        JPanel azioni = new JPanel(new BorderLayout(12, 8));
+        azioni.setOpaque(false);
+        JPanel pulsanti = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        pulsanti.setOpaque(false);
+        pulsanti.add(annulla);
+        pulsanti.add(conferma);
+        azioni.add(errore, BorderLayout.CENTER);
+        azioni.add(pulsanti, BorderLayout.EAST);
+        contenuto.add(azioni, BorderLayout.SOUTH);
+        dialog.setContentPane(contenuto);
+        dialog.setSize(900, 700);
+        dialog.setLocationRelativeTo(this);
+
+        List<String> nomiAllenatori = new ArrayList<>();
+        List<String> nomiSquadre = new ArrayList<>();
+        boolean[] confermato = {false};
+        annulla.addActionListener(e -> dialog.dispose());
+        conferma.addActionListener(e -> {
+            nomiAllenatori.clear();
+            nomiSquadre.clear();
+            for (int i = 0; i < numeroPartecipanti; i++) {
+                String allenatore = campiAllenatore.get(i).getText().trim();
+                String squadra = campiSquadra.get(i).getText().trim();
+                if (allenatore.isEmpty() || squadra.isEmpty()) {
+                    errore.setText("Compila tutti i campi prima di continuare.");
+                    (allenatore.isEmpty() ? campiAllenatore.get(i) : campiSquadra.get(i)).requestFocusInWindow();
+                    return;
+                }
+                for (int j = 0; j < i; j++) {
+                    if (nomiAllenatori.get(j).equalsIgnoreCase(allenatore)
+                            || nomiSquadre.get(j).equalsIgnoreCase(squadra)) {
+                        errore.setText("I nomi dei partecipanti e delle squadre devono essere univoci.");
+                        campiAllenatore.get(i).requestFocusInWindow();
+                        return;
+                    }
+                }
+                nomiAllenatori.add(allenatore);
+                nomiSquadre.add(squadra);
+            }
+            confermato[0] = true;
+            dialog.dispose();
+        });
+        dialog.setVisible(true);
+
+        if (!confermato[0]) {
+            return false;
+        }
+        for (int i = 0; i < numeroPartecipanti; i++) {
+            controller.aggiungiPartecipante(nomiAllenatori.get(i), nomiSquadre.get(i), configurazione.creditiIniziali);
+        }
+        return true;
     }
 
-    private void aggiungiPartecipantiMancanti() {
-        final int BUDGET_FISSO = 500;
-        String[] nomiPartecipanti = {
-            "Luca", "Luigi", "Manolo", "Zampa",
-            "Leonardo", "Simone G", "Simone M", "Mattia"
-        };
+    private int mostraDialogRipristino() {
+        JDialog dialog = creaDialogSetup("Sessione salvata");
+        JPanel contenuto = pannelloSetup("Bentornato", "È disponibile una sessione salvata.");
+        JLabel nota = new JLabel("Riprendendo, ritroverai partecipanti, squadre e rose.");
+        nota.setForeground(COLOR_TEXT_MUTED);
+        nota.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        contenuto.add(nota, BorderLayout.CENTER);
 
-        for (String nome : nomiPartecipanti) {
-            boolean giaPresente = controller.getPartecipanti().stream()
-                    .anyMatch(s -> s.getNomeAllenatore().equalsIgnoreCase(nome));
-            if (!giaPresente) {
-                controller.aggiungiPartecipante(nome, BUDGET_FISSO);
-            }
+        int[] scelta = {JOptionPane.CANCEL_OPTION};
+        JButton nuova = creaBottone("Nuova asta", COLOR_HEADER_DARK, COLOR_TEXT_WHITE);
+        JButton riprendi = creaBottone("Riprendi asta", COLOR_ACCENT, Color.BLACK);
+        JPanel azioni = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        azioni.setOpaque(false);
+        azioni.add(nuova);
+        azioni.add(riprendi);
+        contenuto.add(azioni, BorderLayout.SOUTH);
+        dialog.setContentPane(contenuto);
+        dialog.setSize(560, 300);
+        dialog.setLocationRelativeTo(this);
+        nuova.addActionListener(e -> { scelta[0] = JOptionPane.NO_OPTION; dialog.dispose(); });
+        riprendi.addActionListener(e -> { scelta[0] = JOptionPane.YES_OPTION; dialog.dispose(); });
+        dialog.setVisible(true);
+        return scelta[0];
+    }
+
+    private ConfigurazioneAsta mostraDialogConfigurazioneAsta() {
+        JDialog dialog = creaDialogSetup("Nuova asta");
+        JPanel contenuto = pannelloSetup("Imposta la tua lega", "Scegli il numero di partecipanti e i crediti uguali per tutte le squadre.");
+
+        JSpinner spinnerPartecipanti = new JSpinner(new SpinnerNumberModel(8, 2, 20, 1));
+        JSpinner spinnerCrediti = new JSpinner(new SpinnerNumberModel(500, 1, 100000, 50));
+        configuraSpinnerSetup(spinnerPartecipanti, 24);
+        configuraSpinnerSetup(spinnerCrediti, 24);
+
+        JPanel selezione = new JPanel(new GridLayout(2, 2, 14, 14));
+        selezione.setOpaque(false);
+        selezione.add(creaEtichettaSetup("Numero di partecipanti"));
+        selezione.add(spinnerPartecipanti);
+        selezione.add(creaEtichettaSetup("Crediti iniziali per squadra"));
+        selezione.add(spinnerCrediti);
+        contenuto.add(selezione, BorderLayout.CENTER);
+
+        ConfigurazioneAsta[] configurazione = {null};
+        JButton annulla = creaBottone("Annulla", COLOR_HEADER_DARK, COLOR_TEXT_WHITE);
+        JButton continua = creaBottone("Continua", COLOR_ACCENT, Color.BLACK);
+        JPanel azioni = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        azioni.setOpaque(false);
+        azioni.add(annulla);
+        azioni.add(continua);
+        contenuto.add(azioni, BorderLayout.SOUTH);
+        dialog.setContentPane(contenuto);
+        dialog.setSize(620, 400);
+        dialog.setLocationRelativeTo(this);
+        annulla.addActionListener(e -> dialog.dispose());
+        continua.addActionListener(e -> {
+            configurazione[0] = new ConfigurazioneAsta(
+                    (Integer) spinnerPartecipanti.getValue(),
+                    (Integer) spinnerCrediti.getValue()
+            );
+            dialog.dispose();
+        });
+        dialog.setVisible(true);
+        return configurazione[0];
+    }
+
+    private void configuraSpinnerSetup(JSpinner spinner, int dimensioneFont) {
+        spinner.setFont(new Font("SansSerif", Font.BOLD, dimensioneFont));
+        JComponent editor = spinner.getEditor();
+        if (editor instanceof JSpinner.DefaultEditor) {
+            JTextField campo = ((JSpinner.DefaultEditor) editor).getTextField();
+            campo.setHorizontalAlignment(JTextField.CENTER);
+            campo.setBackground(COLOR_HEADER_DARK);
+            campo.setForeground(COLOR_TEXT_WHITE);
+            campo.setCaretColor(COLOR_ACCENT);
+            campo.setBorder(new CompoundBorder(
+                    new LineBorder(COLOR_BORDER, 1, true), new EmptyBorder(8, 12, 8, 12)));
         }
+    }
+
+    private JLabel creaEtichettaSetup(String testo) {
+        JLabel etichetta = new JLabel(testo);
+        etichetta.setFont(new Font("SansSerif", Font.BOLD, 17));
+        etichetta.setForeground(COLOR_TEXT_WHITE);
+        return etichetta;
+    }
+
+    private static class ConfigurazioneAsta {
+        private final int numeroPartecipanti;
+        private final int creditiIniziali;
+
+        private ConfigurazioneAsta(int numeroPartecipanti, int creditiIniziali) {
+            this.numeroPartecipanti = numeroPartecipanti;
+            this.creditiIniziali = creditiIniziali;
+        }
+    }
+
+    private JDialog creaDialogSetup(String titolo) {
+        JDialog dialog = new JDialog(this, titolo, true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.getContentPane().setBackground(COLOR_BG_DARK);
+        return dialog;
+    }
+
+    private JPanel pannelloSetup(String titolo, String descrizione) {
+        JPanel pannello = new JPanel(new BorderLayout(0, 18));
+        pannello.setBackground(COLOR_BG_DARK);
+        pannello.setBorder(new EmptyBorder(24, 26, 22, 26));
+
+        JPanel intestazione = new JPanel();
+        intestazione.setLayout(new BoxLayout(intestazione, BoxLayout.Y_AXIS));
+        intestazione.setOpaque(false);
+        JLabel titoloLabel = new JLabel(titolo);
+        titoloLabel.setFont(new Font("SansSerif", Font.BOLD, 27));
+        titoloLabel.setForeground(COLOR_ACCENT);
+        JLabel descrizioneLabel = new JLabel(descrizione);
+        descrizioneLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        descrizioneLabel.setForeground(COLOR_TEXT_MUTED);
+        intestazione.add(titoloLabel);
+        intestazione.add(Box.createVerticalStrut(5));
+        intestazione.add(descrizioneLabel);
+        pannello.add(intestazione, BorderLayout.NORTH);
+        return pannello;
+    }
+
+    private JPanel creaGruppoCampo(String etichetta, JTextField campo) {
+        JPanel gruppo = new JPanel(new BorderLayout(0, 5));
+        gruppo.setOpaque(false);
+        JLabel label = new JLabel(etichetta);
+        label.setFont(new Font("SansSerif", Font.BOLD, 12));
+        label.setForeground(COLOR_TEXT_MUTED);
+        gruppo.add(label, BorderLayout.NORTH);
+        gruppo.add(campo, BorderLayout.CENTER);
+        return gruppo;
+    }
+
+    private JTextField creaCampoSetup() {
+        JTextField campo = new JTextField(18);
+        campo.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        campo.setBackground(COLOR_HEADER_DARK);
+        campo.setForeground(COLOR_TEXT_WHITE);
+        campo.setCaretColor(COLOR_ACCENT);
+        campo.setBorder(new CompoundBorder(new LineBorder(COLOR_BORDER, 1, true), new EmptyBorder(8, 10, 8, 10)));
+        return campo;
     }
 
     private void inizializzaComponenti() {
@@ -333,9 +568,12 @@ public class AstaGuiView extends JFrame {
             }
         });
 
-        JPanel panelTopRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        JPanel panelTopRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         panelTopRight.setOpaque(false);
+        JButton btnModificaNomi = creaBottone("✎ Modifica nomi", COLOR_HEADER_DARK, COLOR_TEXT_WHITE);
+        panelTopRight.add(btnModificaNomi);
         panelTopRight.add(comboVisualizzaRosa);
+        btnModificaNomi.addActionListener(e -> apriDialogRinominaPartecipante());
 
         lblFotoProfilo = new JLabel();
         lblFotoProfilo.setPreferredSize(new Dimension(AVATAR_PROFILO_SIZE, AVATAR_PROFILO_SIZE));
@@ -1013,13 +1251,72 @@ private void riproduciAudioAllenatore(String nomeAllenatore) {
         }
     }
 
+    private void apriDialogRinominaPartecipante() {
+        FantaSquadra squadra = (FantaSquadra) comboVisualizzaRosa.getSelectedItem();
+        if (squadra == null) return;
+
+        JDialog dialog = creaDialogSetup("Modifica nomi");
+        JPanel contenuto = pannelloSetup(
+                "Rinomina partecipante",
+                "La modifica viene salvata insieme alla sessione dell’asta."
+        );
+
+        JTextField campoAllenatore = creaCampoSetup();
+        campoAllenatore.setText(squadra.getNomeAllenatore());
+        JTextField campoSquadra = creaCampoSetup();
+        campoSquadra.setText(squadra.getNomeSquadra());
+
+        JPanel campi = new JPanel(new GridLayout(1, 2, 14, 0));
+        campi.setOpaque(false);
+        campi.add(creaGruppoCampo("Nome partecipante", campoAllenatore));
+        campi.add(creaGruppoCampo("Nome squadra", campoSquadra));
+        contenuto.add(campi, BorderLayout.CENTER);
+
+        JLabel errore = new JLabel(" ");
+        errore.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        errore.setForeground(COLOR_DANGER);
+        JButton annulla = creaBottone("Annulla", COLOR_HEADER_DARK, COLOR_TEXT_WHITE);
+        JButton salva = creaBottone("Salva modifiche", COLOR_ACCENT, Color.BLACK);
+        JPanel azioni = new JPanel(new BorderLayout(12, 8));
+        azioni.setOpaque(false);
+        JPanel pulsanti = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        pulsanti.setOpaque(false);
+        pulsanti.add(annulla);
+        pulsanti.add(salva);
+        azioni.add(errore, BorderLayout.CENTER);
+        azioni.add(pulsanti, BorderLayout.EAST);
+        contenuto.add(azioni, BorderLayout.SOUTH);
+
+        dialog.setContentPane(contenuto);
+        dialog.setSize(760, 300);
+        dialog.setLocationRelativeTo(this);
+        annulla.addActionListener(e -> dialog.dispose());
+        salva.addActionListener(e -> {
+            String allenatore = campoAllenatore.getText().trim();
+            String nomeSquadra = campoSquadra.getText().trim();
+            if (allenatore.isEmpty() || nomeSquadra.isEmpty()) {
+                errore.setText("Compila entrambi i campi.");
+                return;
+            }
+            if (!controller.rinominaPartecipante(squadra, allenatore, nomeSquadra)) {
+                errore.setText("Uno dei due nomi è già usato da un altro partecipante.");
+                return;
+            }
+            dialog.dispose();
+            aggiornaVista();
+            comboVisualizzaRosa.setSelectedItem(squadra);
+        });
+        dialog.setVisible(true);
+        campoAllenatore.requestFocusInWindow();
+    }
+
     private void mostraRosaDettagliata() {
         FantaSquadra sel = (FantaSquadra) comboVisualizzaRosa.getSelectedItem();
         if (sel == null) return;
 
         lblTitoloRosa.setText(sel.getNomeAllenatore().toUpperCase());
 
-        String nomeSquadra = controller.getNomeSquadraFantacalcio(sel.getNomeAllenatore());
+        String nomeSquadra = sel.getNomeSquadra();
         lblNomeSquadra.setText(nomeSquadra != null && !nomeSquadra.trim().isEmpty() ? nomeSquadra : "");
 
         String resocontoRuoli = String.format("<html><b>Crediti Rimanenti:</b> <font color='#A6E3A1'>%d cr</font><br><br>" +

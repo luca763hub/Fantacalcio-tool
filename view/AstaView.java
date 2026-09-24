@@ -37,9 +37,11 @@ public class AstaView {
         int budgetIniziale = Integer.parseInt(scanner.nextLine());
 
         for (int i = 1; i <= numPartecipanti; i++) {
-            System.out.print("Nome Fantallenatore " + i + ": ");
+            System.out.print("Nome partecipante " + i + ": ");
             String nome = scanner.nextLine();
-            controller.aggiungiPartecipante(nome, budgetIniziale);
+            System.out.print("Nome squadra " + i + ": ");
+            String nomeSquadra = scanner.nextLine();
+            controller.aggiungiPartecipante(nome, nomeSquadra, budgetIniziale);
         }
     }
 
