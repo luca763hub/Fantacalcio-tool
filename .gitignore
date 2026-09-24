@@ -1,3 +1,7 @@
 *.class
 .vscode/
 
+data/foto/*
+!data/foto/.gitkeep
+data/audio/*
+!data/audio/.gitkeep
