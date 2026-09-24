@@ -25,7 +25,7 @@ Per una nuova asta:
 3. Scrivi il nome di ogni partecipante e quello della sua squadra. I campi sono vuoti all’inizio: non dimenticarne nessuno.
 4. Premi **Crea asta**.
 
-I nomi dei partecipanti devono essere tutti diversi tra loro. Anche i nomi delle squadre devono essere tutti diversi tra loro.
+I nomi dei partecipanti devono essere tutti diversi tra loro. Anche i nomi delle squadre devono essere tutti diversi tra loro. Scrivi per ogni squadra lo stesso nome scelto dai partecipanti nell’app ufficiale del Fantacalcio, facendo attenzione a spazi e grafia: serve per riconoscerla quando importerai i risultati.
 
 ### Se due partecipanti hanno lo stesso nome
 
@@ -65,5 +65,7 @@ Se cambi il nome del partecipante durante l’asta, rinomina anche i suoi file f
 ## Salvataggio e chiusura
 
 Il programma salva automaticamente i nomi, le squadre e gli acquisti. Quando lo riapri, puoi riprendere l’asta salvata.
+
+Quando l’asta è terminata, usa il file data/rose_import.csv per importare i risultati nell’app ufficiale del Fantacalcio. L’app può usare questo file per assegnare automaticamente i calciatori alle squadre. Per farlo funzionare, i nomi delle squadre nel setup devono essere uguali a quelli già presenti nell’app ufficiale.
 
 Per chiudere il programma, chiudi la finestra principale.
