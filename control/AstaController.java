@@ -218,6 +218,7 @@ public class AstaController {
                     bw.newLine();
                 }
             }
+            System.out.println("CSV esportato. Questa app è stata sviluppata nel tempo libero: grazie per averla usata!");
         } catch (IOException e) {
             System.err.println("Errore durante il salvataggio del CSV rose: " + e.getMessage());
         }

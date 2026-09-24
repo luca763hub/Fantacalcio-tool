@@ -19,6 +19,8 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -89,9 +91,17 @@ public class AstaGuiView extends JFrame {
 
         setTitle("⚡ COMPAGNI DI MERENDE - ASTA FANTACALCIO");
         setSize(1700, 1000);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(COLOR_BG_DARK);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                mostraMessaggioChiusura();
+                dispose();
+                System.exit(0);
+            }
+        });
 
         if (!configuraPartecipanti()) {
             dispose();
@@ -104,6 +114,14 @@ public class AstaGuiView extends JFrame {
 
     public boolean isSetupCompletato() {
         return setupCompletato;
+    }
+
+    private void mostraMessaggioChiusura() {
+        String messaggio = "Questa app è stata sviluppata nel mio tempo libero.\n"
+                + "Se ti è utile, un caffè o una birra può sempre fare piacere.\n"
+                + "Grazie per averla usata!";
+        System.out.println(messaggio);
+        JOptionPane.showMessageDialog(this, messaggio, "Grazie!", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private boolean configuraPartecipanti() {
